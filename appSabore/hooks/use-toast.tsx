@@ -1,29 +1,34 @@
-import { Platform } from 'react-native';
-import { toast as toastify, ToastOptions } from 'react-toastify';
-import { ToastAndroid } from 'react-native';
+import { Platform, ToastAndroid } from 'react-native';
 import React from 'react';
 
-interface ToastInput {
+export type ToastKind = 'info' | 'success' | 'error';
+
+export interface ToastInput {
   title: string;
   description?: string;
-  options?: ToastOptions;
+  type?: ToastKind;
 }
 
-export function toast({ title, description, options }: ToastInput) {
+let showToastRef: null | ((args: ToastInput) => void) = null;
+
+export function registerToast(showFn: (args: ToastInput) => void) {
+  showToastRef = showFn;
+}
+
+export function toast({ title, description, type }: ToastInput) {
+  if (showToastRef) {
+    showToastRef({ title, description, type });
+    return;
+  }
   if (Platform.OS === 'web') {
-    toastify.info(
-      <div>
-        <strong>{title}</strong>
-        {description && <div>{description}</div>}
-      </div>,
-      options
-    );
+    // Fallback simples no navegador caso o Provider não esteja montado
+    // eslint-disable-next-line no-alert
+    alert(`${title}${description ? '\n' + description : ''}`);
   } else {
-    // Toast nativo para Android
     ToastAndroid.showWithGravity(
       `${title}${description ? '\n' + description : ''}`,
       ToastAndroid.LONG,
       ToastAndroid.CENTER
     );
   }
-} 
+}

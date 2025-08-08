@@ -36,7 +36,7 @@ const Card: React.FC<CardProps> = ({
     Animated.timing(animScaleX, {
       toValue: 0,
       duration: 400,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start(() => {
       setIsAnimating(false);
       animScaleX.setValue(1);
@@ -67,7 +67,7 @@ const Card: React.FC<CardProps> = ({
         {/* Imagem */}
         <View style={cardStyles.imageContainer}>
           <Image
-            source={typeof imageUrl === 'string' ? { uri: imageUrl } : imageUrl}
+            source={typeof imageUrl === 'string' && imageUrl ? { uri: imageUrl } : (imageUrl as number)}
             style={[
               cardStyles.image,
               imageLoaded && cardStyles.imageLoaded,

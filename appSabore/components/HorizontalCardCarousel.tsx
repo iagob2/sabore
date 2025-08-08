@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import Card from './Card';
 
@@ -22,6 +22,9 @@ const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
   onCardClick
 }) => {
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.min(320, Math.max(260, Math.floor(screenWidth * 0.8)));
+  const sideMargin = screenWidth < 360 ? 6 : 8;
 
   const handleCardClick = (id: string) => {
     if (onCardClick) onCardClick(id);
@@ -42,8 +45,8 @@ const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
     >
       {cards.map((card) => (
         <View key={card.id} style={{ 
-          width: 320, 
-          marginHorizontal: 8,
+          width: cardWidth, 
+          marginHorizontal: sideMargin,
           alignItems: 'center',
         }}>
           <Card

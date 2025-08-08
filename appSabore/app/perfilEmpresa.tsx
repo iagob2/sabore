@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -499,6 +499,11 @@ const PerfilEmpresa = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const empresa = empresaData[id as string] || empresaData['1'];
+  const { width: screenWidth } = useWindowDimensions();
+  const isSmallScreen = screenWidth < 380;
+  const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
+  const isLargeScreenRuntime = screenWidth > 900;
+  const socialIconSize = isSmallScreen ? 22 : isMediumScreen ? 24 : 28;
   const [copied, setCopied] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [pratoSelecionado, setPratoSelecionado] = useState(null);
@@ -603,8 +608,8 @@ const PerfilEmpresa = () => {
       />
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 32 }}>
         {/* Banner com gradiente e nome */}
-        <View style={perfilEmpresaStyles.bannerContainer}>
-          <Image source={empresa.banner} style={perfilEmpresaStyles.bannerImage} />
+        <View style={[perfilEmpresaStyles.bannerContainer, { height: isSmallScreen ? 160 : isMediumScreen ? 200 : 220 }]}>
+          <Image source={empresa.banner} style={[perfilEmpresaStyles.bannerImage, { height: isSmallScreen ? 160 : isMediumScreen ? 200 : 220 }]} />
           <LinearGradient
             colors={[ 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.7)' ]}
             style={perfilEmpresaStyles.bannerGradient}
@@ -619,16 +624,16 @@ const PerfilEmpresa = () => {
               alignItems: 'center',
               backgroundColor: 'rgba(101,12,12,0.07)',
               borderRadius: 16,
-              paddingVertical: 6,
-              paddingHorizontal: 18,
+              paddingVertical: isSmallScreen ? 4 : 6,
+              paddingHorizontal: isSmallScreen ? 12 : 18,
               position: 'absolute',
-              bottom: 12,
-              right: 32,
+              bottom: isSmallScreen ? 8 : 12,
+              right: isSmallScreen ? 12 : 32,
               zIndex: 10,
             }}
           >
-            <StarRating rating={empresa.avaliacao || 4.8} size={22} />
-            <Text style={{ color: colors.amareloOuro, fontWeight: 'bold', fontSize: 18, marginLeft: 10 }}>
+            <StarRating rating={empresa.avaliacao || 4.8} size={isSmallScreen ? 18 : 22} />
+            <Text style={{ color: colors.amareloOuro, fontWeight: 'bold', fontSize: isSmallScreen ? 16 : 18, marginLeft: 10 }}>
               {empresa.avaliacao ? empresa.avaliacao.toFixed(1) : '4.8'}
             </Text>
           </TouchableOpacity>
@@ -636,17 +641,30 @@ const PerfilEmpresa = () => {
                         {/* Logo, descrição, informações e links sociais em container flexível */}
         <View style={perfilEmpresaStyles.mainContentContainer}>
           {/* Logo e descrição */}
-          <View style={perfilEmpresaStyles.logoContainer}>
-            <Image source={empresa.logo} style={perfilEmpresaStyles.logo} />
-            <View style={{ flex: 1, marginLeft: 20 }}>
-              <Text style={[perfilEmpresaStyles.nome, {color: colors.branco}]}>{empresa.nome}</Text>
-              {/* Descrição removida para melhor legibilidade */}
+          <View style={[perfilEmpresaStyles.logoContainer, { flexDirection: isSmallScreen ? 'column' : 'row', alignItems: isSmallScreen ? 'center' : 'center' }]}>
+            <Image source={empresa.logo} style={[perfilEmpresaStyles.logo, { width: isSmallScreen ? 96 : 120, height: isSmallScreen ? 96 : 120, borderRadius: isSmallScreen ? 48 : 60 }]} />
+            <View style={{ flex: 1, marginLeft: isSmallScreen ? 0 : 20, marginTop: isSmallScreen ? 8 : 0 }}>
+              <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: isSmallScreen ? 'center' : 'left', fontSize: isSmallScreen ? 24 : 30 }]}>{empresa.nome}</Text>
             </View>
           </View>
 
-          {/* Info rápida na parte inferior do banner */}
-          <View style={perfilEmpresaStyles.infoRapidaContainer}>
-            <View style={perfilEmpresaStyles.infoRapida}>
+          {/* Info rápida responsiva */}
+          <View
+            style={[
+              perfilEmpresaStyles.infoRapidaContainer,
+              isLargeScreenRuntime
+                ? null
+                : { position: 'relative', top: 0, right: 0, alignSelf: 'center', marginTop: 8 },
+            ]}
+          >
+            <View
+              style={[
+                perfilEmpresaStyles.infoRapida,
+                (isSmallScreen || isMediumScreen)
+                  ? { flexWrap: 'wrap', justifyContent: 'center' }
+                  : { flexWrap: 'nowrap', justifyContent: 'flex-end' },
+              ]}
+            >
               <View style={perfilEmpresaStyles.infoItem}>
                 <Text style={perfilEmpresaStyles.infoIcon}>{empresa.aberto ? '🟢' : '🔴'}</Text>
                 <Text style={perfilEmpresaStyles.infoText}>{empresa.aberto ? 'Aberto' : 'Fechado'}</Text>
@@ -668,26 +686,38 @@ const PerfilEmpresa = () => {
             </View>
           </View>
 
-          {/* Links sociais sempre abaixo da descrição */}
-          <View style={perfilEmpresaStyles.socialRowContainer}>
-            <View style={perfilEmpresaStyles.socialRow}>
+          {/* Links sociais responsivos */}
+          <View
+            style={[
+              perfilEmpresaStyles.socialRowContainer,
+              isLargeScreenRuntime
+                ? null
+                : { position: 'relative', top: 0, left: 0, marginTop: 8, alignSelf: 'center' },
+            ]}
+          >
+            <View
+              style={[
+                perfilEmpresaStyles.socialRow,
+                { justifyContent: isLargeScreenRuntime ? 'flex-start' : 'center', flexWrap: isLargeScreenRuntime ? 'nowrap' : 'wrap' },
+              ]}
+            >
               <TouchableOpacity accessibilityLabel="Site" onPress={() => Linking.openURL(empresa.links.site)}>
-                <Icon name="globe" size={28} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <Icon name="globe" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="Facebook" onPress={() => Linking.openURL(empresa.links.facebook)}>
-                <Icon name="facebook" size={28} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <Icon name="facebook" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="Instagram" onPress={() => Linking.openURL(empresa.links.instagram)}>
-                <Icon name="instagram" size={28} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <Icon name="instagram" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="WhatsApp" onPress={() => Linking.openURL(empresa.links.whatsapp)}>
-                <Icon name="whatsapp" size={28} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <Icon name="whatsapp" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="Maps" onPress={() => Linking.openURL(empresa.links.maps)}>
-                <Icon name="map-marker" size={28} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <Icon name="map-marker" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="E-mail" onPress={() => Linking.openURL(empresa.links.email)}>
-                <Icon name="envelope" size={28} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <Icon name="envelope" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
             </View>
           </View>
@@ -698,11 +728,11 @@ const PerfilEmpresa = () => {
               width: '100%',
               maxWidth: 1400,
               flexDirection: isLargeScreen ? 'row' : 'column',
-              alignItems: 'flex-start',
+              alignItems: isSmallScreen ? 'center' : 'flex-start',
               justifyContent: 'center',
-              marginTop: 60,
+              marginTop: isSmallScreen ? 24 : 60,
               marginBottom: 32,
-              paddingHorizontal: 20,
+              paddingHorizontal: isSmallScreen ? 12 : 20,
             }}>
               {/* Seções institucionais na esquerda */}
               <View style={{
@@ -737,8 +767,8 @@ const PerfilEmpresa = () => {
                 display: 'flex',
               }}>
                 {/* Categoria Quentes */}
-                <View style={{ width: '100%', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: 20, marginBottom: 8, textAlign: 'left', marginLeft: 40 }}>Quentes</Text>
+                <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
+                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Quentes</Text>
                   <ScrollView 
                     horizontal 
                     showsHorizontalScrollIndicator={false} 
@@ -755,8 +785,8 @@ const PerfilEmpresa = () => {
                   </ScrollView>
                 </View>
                 {/* Categoria Frios */}
-                <View style={{ width: '100%', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: 20, marginBottom: 8, textAlign: 'left', marginLeft: 40 }}>Frios</Text>
+                <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
+                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Frios</Text>
                   <ScrollView 
                     horizontal 
                     showsHorizontalScrollIndicator={false} 
@@ -773,8 +803,8 @@ const PerfilEmpresa = () => {
                   </ScrollView>
                 </View>
                 {/* Categoria Favoritos */}
-                <View style={{ width: '100%', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: 20, marginBottom: 8, textAlign: 'left', marginLeft: 40 }}>Favoritos</Text>
+                <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
+                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Favoritos</Text>
                   <ScrollView 
                     horizontal 
                     showsHorizontalScrollIndicator={false} 

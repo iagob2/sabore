@@ -12,6 +12,7 @@ export const headerStyles = StyleSheet.create({
     marginLeft: 'auto',
     marginRight: 'auto',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: isSmallScreen ? 8 : isLargeScreen ? 24 : 16,
@@ -31,7 +32,11 @@ export const headerStyles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: isSmallScreen ? 8 : 16,
+    gap: isSmallScreen ? 6 : 16,
+    flexWrap: 'wrap',
+    justifyContent: isSmallScreen ? 'center' : 'flex-end',
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   btn: {
     paddingVertical: isSmallScreen ? 4 : 8,
@@ -98,5 +103,24 @@ export const headerStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     overflow: 'hidden',
+  },
+  mobileMenuPanel: {
+    width: '100%',
+    backgroundColor: colors.branco,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.marromFeijao,
+    borderTopWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  mobileMenuItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.marromFeijao,
+  },
+  mobileMenuText: {
+    color: colors.verdeFolha,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

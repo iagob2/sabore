@@ -1,12 +1,10 @@
 
 import React, { useRef, useState } from 'react';
-import { View, ScrollView, Image, Text, Dimensions, TouchableOpacity } from 'react-native';
+import { View, ScrollView, Image, Text, Dimensions, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
 import Header from '../components/Header';
 import Input from '../components/Input';
 import HorizontalCardCarousel from '../components/HorizontalCardCarousel';
 import { toast } from '../hooks/use-toast';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { indexStyles } from '../style/indexStyles';
 import { useRouter } from 'expo-router';
 import { colors } from '../style/colors';
@@ -21,8 +19,16 @@ const Index = () => {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const screenWidth = Dimensions.get('window').width;
-  const searchInputWidth = Math.min(520, screenWidth - 140);
+  const { width: screenWidth } = useWindowDimensions();
+  const isSmallScreen = screenWidth < 380;
+  const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
+  const carouselHeight = isSmallScreen ? 200 : isMediumScreen ? 240 : 300;
+  const titleFontSize = isSmallScreen ? 16 : 18;
+  const subtitleFontSize = isSmallScreen ? 13 : 14;
+  const descFontSize = isSmallScreen ? 11 : 12;
+  const arrowButtonSize = isSmallScreen ? 34 : 40;
+  const arrowIconSize = isSmallScreen ? 24 : 28;
+  const searchInputWidth = Math.min(520, Math.max(260, Math.floor(screenWidth * 0.9)));
   const [searchQuery, setSearchQuery] = useState('');
   const [useLocationFilter, setUseLocationFilter] = useState(false);
   const [userLocation, setUserLocation] = useState<null | { latitude: number; longitude: number }>(null);
@@ -137,30 +143,43 @@ const Index = () => {
 
   const handleUseLocation = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        toast({
-          title: 'Permissão negada',
-          description: 'Não foi possível acessar sua localização.'
+      if (Platform.OS === 'web') {
+        if (!('geolocation' in navigator)) {
+          toast({ title: 'Indisponível', description: 'Geolocalização não suportada no navegador.' });
+          return;
+        }
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('timeout')), 6000);
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              clearTimeout(timeout);
+              setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+              setUseLocationFilter(true);
+              toast({ title: 'Localização ativada', description: 'Filtrando restaurantes próximos.' });
+              resolve();
+            },
+            (err) => {
+              clearTimeout(timeout);
+              reject(err);
+            },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 }
+          );
         });
         return;
       }
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        toast({ title: 'Permissão negada', description: 'Não foi possível acessar sua localização.' });
+        return;
+      }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
+      const coords = { latitude: position.coords.latitude, longitude: position.coords.longitude };
       setUserLocation(coords);
       setUseLocationFilter(true);
-      toast({
-        title: 'Localização ativada',
-        description: 'Filtrando restaurantes próximos.'
-      });
+      toast({ title: 'Localização ativada', description: 'Filtrando restaurantes próximos.' });
     } catch (e) {
-      toast({
-        title: 'Erro de localização',
-        description: 'Tente novamente mais tarde.'
-      });
+      toast({ title: 'Erro de localização', description: 'Tente novamente mais tarde.' });
     }
   };
 
@@ -193,13 +212,12 @@ const Index = () => {
         cartItemCount={carrinho.length}
         onCartPress={abrirCarrinho}
       />
-      <ToastContainer />
       <ScrollView style={indexStyles.scroll} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Carrossel de Ofertas */}
         <View style={indexStyles.bannerContainer}>
           <View style={{
             width: '100%',
-            height: 300,
+            height: carouselHeight,
             position: 'relative',
             overflow: 'hidden',
             borderRadius: 12
@@ -222,7 +240,7 @@ const Index = () => {
               {offers.map((offer, index) => (
                 <View key={offer.id} style={{
                   width: screenWidth,
-                  height: 300,
+                  height: carouselHeight,
                   position: 'relative'
                 }}>
                   <Image
@@ -257,7 +275,7 @@ const Index = () => {
                   }}>
                     <Text style={{
                       color: '#fff',
-                      fontSize: 18,
+                      fontSize: titleFontSize,
                       fontWeight: 'bold',
                       marginBottom: 4
                     }}>
@@ -265,7 +283,7 @@ const Index = () => {
                     </Text>
                     <Text style={{
                       color: '#FBBF24',
-                      fontSize: 14,
+                      fontSize: subtitleFontSize,
                       fontWeight: '600',
                       marginBottom: 2
                     }}>
@@ -273,7 +291,7 @@ const Index = () => {
                     </Text>
                     <Text style={{
                       color: '#fff',
-                      fontSize: 12,
+                      fontSize: descFontSize,
                       opacity: 0.9
                     }}>
                       {offer.description}
@@ -303,9 +321,9 @@ const Index = () => {
                   style={{
                     position: 'absolute',
                     left: 8,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
+                    width: arrowButtonSize,
+                    height: arrowButtonSize,
+                    borderRadius: arrowButtonSize / 2,
                     backgroundColor: 'rgba(0,0,0,0.5)',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -313,7 +331,7 @@ const Index = () => {
                   }}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                 >
-                  <MaterialIcons name="chevron-left" size={28} color="#fff" />
+                  <MaterialIcons name="chevron-left" size={arrowIconSize} color="#fff" />
                 </TouchableOpacity>
 
                 {/* Direita */}
@@ -324,9 +342,9 @@ const Index = () => {
                   style={{
                     position: 'absolute',
                     right: 8,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
+                    width: arrowButtonSize,
+                    height: arrowButtonSize,
+                    borderRadius: arrowButtonSize / 2,
                     backgroundColor: 'rgba(0,0,0,0.5)',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -334,7 +352,7 @@ const Index = () => {
                   }}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                 >
-                  <MaterialIcons name="chevron-right" size={28} color="#fff" />
+                  <MaterialIcons name="chevron-right" size={arrowIconSize} color="#fff" />
                 </TouchableOpacity>
               </View>
             )}

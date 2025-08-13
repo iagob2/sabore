@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import { useRouter } from 'expo-router';
 import PoliticaProtecaoDados from './politicaProtecaoDados';
 import { colors } from '../style/colors';
+import { cadastrarCliente, buscarEnderecoPorCep } from '../api/cliente';
 
 const logoApp = require('../assets/logo-sabore.png');
 const sashimiBanner = require('../assets/banner-sabore.png');
@@ -100,15 +101,23 @@ const Cadastro = () => {
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [cep, setCep] = useState('');
+  const [rua, setRua] = useState('');
+  const [bairro, setBairro] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState('');
+  const [numero, setNumero] = useState('');
   const [aceitaProtecaoDados, setAceitaProtecaoDados] = useState(false);
   const [aceitaMarketing, setAceitaMarketing] = useState(false);
   const [aceitaAtendimento, setAceitaAtendimento] = useState(false);
   const [erro, setErro] = useState('');
   const [politicaVisible, setPoliticaVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
   const router = useRouter();
 
-  const handleRegister = () => {
-    if (!nome || !telefone || !cpf || !email || !senha) {
+  const handleRegister = async () => {
+    if (!nome || !cpf || !email || !senha) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
@@ -119,8 +128,51 @@ const Cadastro = () => {
     }
     
     setErro('');
-    // Aqui você pode adicionar a lógica de cadastro
-    alert(`Nome: ${nome}\nTelefone: ${telefone}\nCPF: ${cpf}\nEmail: ${email}\nSenha: ${senha}\nAceita Proteção de Dados: ${aceitaProtecaoDados ? 'Sim' : 'Não'}\nAceita Marketing: ${aceitaMarketing ? 'Sim' : 'Não'}\nAceita Atendimento: ${aceitaAtendimento ? 'Sim' : 'Não'}`);
+    setSubmitting(true);
+    try {
+      await cadastrarCliente({
+        nome,
+        telefone: telefone || undefined,
+        cpf,
+        email,
+        senha,
+        cep: cep || undefined,
+        rua: rua || undefined,
+        bairro: bairro || undefined,
+        cidade: cidade || undefined,
+        estado: estado || undefined,
+        numero: numero || undefined,
+        aceitaProtecaoDados,
+        aceitaMarketing,
+        aceitaAtendimento,
+      });
+      alert('Cadastro realizado com sucesso!');
+      router.push('/login');
+    } catch (e: any) {
+      setErro(e?.message || 'Erro ao realizar cadastro.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const tryAutoFillByCep = async (value: string) => {
+    setCep(value);
+    const digits = (value || '').replace(/\D/g, '');
+    if (digits.length === 8) {
+      setIsFetchingCep(true);
+      setErro('');
+      try {
+        const endereco = await buscarEnderecoPorCep(digits);
+        setRua(endereco.rua || '');
+        setBairro(endereco.bairro || '');
+        setCidade(endereco.cidade || '');
+        setEstado(endereco.estado || '');
+      } catch (e: any) {
+        setErro(e?.message || 'Falha ao buscar CEP.');
+      } finally {
+        setIsFetchingCep(false);
+      }
+    }
   };
 
   return (
@@ -252,6 +304,66 @@ const Cadastro = () => {
                 </View>
               </View>
 
+              {/* Terceira linha: CEP e Estado */}
+              <View style={[cadastroStyles.formRow, { display: isMediumScreen ? 'flex' : 'none' }]}> 
+                <View style={cadastroStyles.formColumn}>
+                  <Input
+                    label="CEP"
+                    placeholder="Digite seu CEP"
+                    value={cep}
+                    onChangeText={tryAutoFillByCep}
+                  />
+                </View>
+                <View style={cadastroStyles.formColumn}>
+                  <Input
+                    label="Estado"
+                    placeholder="Digite seu estado (UF)"
+                    value={estado}
+                    onChangeText={setEstado}
+                  />
+                </View>
+              </View>
+
+              {/* Quarta linha: Rua e Número */}
+              <View style={[cadastroStyles.formRow, { display: isMediumScreen ? 'flex' : 'none' }]}> 
+                <View style={cadastroStyles.formColumn}>
+                  <Input
+                    label="Rua"
+                    placeholder="Digite sua rua"
+                    value={rua}
+                    onChangeText={setRua}
+                  />
+                </View>
+                <View style={cadastroStyles.formColumn}>
+                  <Input
+                    label="Número"
+                    placeholder="Digite o número"
+                    value={numero}
+                    onChangeText={setNumero}
+                  />
+                </View>
+              </View>
+
+              {/* Quinta linha: Bairro e Cidade */}
+              <View style={[cadastroStyles.formRow, { display: isMediumScreen ? 'flex' : 'none' }]}> 
+                <View style={cadastroStyles.formColumn}>
+                  <Input
+                    label="Bairro"
+                    placeholder="Digite seu bairro"
+                    value={bairro}
+                    onChangeText={setBairro}
+                  />
+                </View>
+                <View style={cadastroStyles.formColumn}>
+                  <Input
+                    label="Cidade"
+                    placeholder="Digite sua cidade"
+                    value={cidade}
+                    onChangeText={setCidade}
+                  />
+                </View>
+              </View>
+
               {/* Campos em coluna única para telas menores */}
               <View style={{ display: isMediumScreen ? 'none' : 'flex', width: '100%' }}>
                 <View style={{ width: '100%', marginBottom: 10 }}>
@@ -286,6 +398,54 @@ const Cadastro = () => {
                     onChangeText={setEmail}
                   />
                 </View>
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Input
+                    label="CEP"
+                    placeholder="Digite seu CEP"
+                    value={cep}
+                    onChangeText={tryAutoFillByCep}
+                  />
+                </View>
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Input
+                    label="Estado"
+                    placeholder="Digite seu estado (UF)"
+                    value={estado}
+                    onChangeText={setEstado}
+                  />
+                </View>
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Input
+                    label="Rua"
+                    placeholder="Digite sua rua"
+                    value={rua}
+                    onChangeText={setRua}
+                  />
+                </View>
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Input
+                    label="Número"
+                    placeholder="Digite o número"
+                    value={numero}
+                    onChangeText={setNumero}
+                  />
+                </View>
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Input
+                    label="Bairro"
+                    placeholder="Digite seu bairro"
+                    value={bairro}
+                    onChangeText={setBairro}
+                  />
+                </View>
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Input
+                    label="Cidade"
+                    placeholder="Digite sua cidade"
+                    value={cidade}
+                    onChangeText={setCidade}
+                  />
+                </View>
               </View>
 
               {/* Senha sempre em largura total */}
@@ -295,6 +455,7 @@ const Cadastro = () => {
                   placeholder="Digite sua senha"
                   value={senha}
                   onChangeText={setSenha}
+                  secureTextEntry
                 />
               </View>
 
@@ -376,10 +537,10 @@ const Cadastro = () => {
                   }
                 ]} 
                 activeOpacity={0.85} 
-                disabled={!nome || !telefone || !cpf || !email || !senha || !aceitaProtecaoDados}
+                disabled={submitting || !nome || !cpf || !email || !senha || !aceitaProtecaoDados}
               >
                 <Text style={cadastroStyles.buttonText}>
-                  {aceitaProtecaoDados ? 'Registrar' : 'Aceite a política de dados'}
+                  {aceitaProtecaoDados ? (submitting ? 'Enviando...' : 'Registrar') : 'Aceite a política de dados'}
                 </Text>
               </TouchableOpacity>
               

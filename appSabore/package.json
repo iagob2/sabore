@@ -31,7 +31,8 @@
     "react-native-web": "^0.20.0",
     "react-toastify": "^11.0.5",
     "tailwindcss": "^4.1.11",
-    "expo-location": "~18.1.6"
+    "expo-location": "~18.1.6",
+    "@expo/metro-runtime": "~5.0.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

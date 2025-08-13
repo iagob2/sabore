@@ -6,6 +6,7 @@ import ActionButton from '../components/ActionButton';
 import { indexStyles } from '../style/indexStyles';
 import { useRouter } from 'expo-router';
 import { colors } from '../style/colors';
+import { loginCliente } from '../api/cliente';
 
 const logoApp = require('../assets/logo-sabore.png');
 const sashimiBanner = require('../assets/banner-sabore.png');
@@ -14,20 +15,27 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const isLargeScreen = SCREEN_WIDTH > 700;
 
 const Login = () => {
-  const [cpf, setCpf] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
 
-  const handleLogin = () => {
-    // Exemplo de validação
-    if (!cpf || !senha) {
+  const handleLogin = async () => {
+    if (!email || !senha) {
       setErro('Preencha todos os campos.');
       return;
     }
     setErro('');
-    // Aqui você pode adicionar a lógica de autenticação
-    alert(`CPF: ${cpf}\nSenha: ${senha}`);
+    setIsLoggingIn(true);
+    try {
+      await loginCliente({ email, senha });
+      router.push('/');
+    } catch (e: any) {
+      setErro(e?.message || 'Falha no login.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -128,10 +136,10 @@ const Login = () => {
           }}>
             <View style={{ width: '100%', marginBottom: 10 }}>
               <Input
-                label="CPF"
-                placeholder="Digite seu CPF"
-                value={cpf}
-                onChangeText={setCpf}
+                label="E-mail"
+                placeholder="Digite seu e-mail"
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
             <View style={{ width: '100%', marginBottom: 10 }}>
@@ -140,6 +148,7 @@ const Login = () => {
                 placeholder="Digite sua senha"
                 value={senha}
                 onChangeText={setSenha}
+                secureTextEntry
               />
             </View>
             {/* Mensagem de erro */}
@@ -153,9 +162,9 @@ const Login = () => {
               style={{
                 width: '100%',
                 marginTop: 12,
-                opacity: cpf && senha ? 1 : 0.6,
+                opacity: email && senha && !isLoggingIn ? 1 : 0.6,
               }}
-              disabled={!cpf || !senha}
+              disabled={!email || !senha || isLoggingIn}
             />
             {/* Link para cadastro */}
             <TouchableOpacity onPress={() => router.push('/cadastro')} style={{ marginTop: 16 }}>

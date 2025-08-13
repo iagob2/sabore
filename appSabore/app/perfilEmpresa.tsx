@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { FontAwesome } from '@expo/vector-icons';
 import { indexStyles } from '../style/indexStyles';
 import Header from '../components/Header';
 import CardPrato from '../components/CardPrato';
@@ -670,14 +670,14 @@ const PerfilEmpresa = () => {
                 <Text style={perfilEmpresaStyles.infoText}>{empresa.aberto ? 'Aberto' : 'Fechado'}</Text>
               </View>
               <View style={perfilEmpresaStyles.infoItem}>
-                <Icon name="phone" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
+                <FontAwesome name="phone" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
                 <Text style={perfilEmpresaStyles.infoText}>{empresa.telefone}</Text>
                 <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresa.telefone, 'telefone')} accessibilityLabel="Copiar telefone">
                   <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>{copied === 'telefone' ? '✔️' : '📋'}</Text>
                 </TouchableOpacity>
               </View>
               <View style={perfilEmpresaStyles.infoItem}>
-                <Icon name="map-marker" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
+                <FontAwesome name="map-marker" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
                 <Text style={perfilEmpresaStyles.infoText}>{empresa.endereco}</Text>
                 <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresa.endereco, 'endereco')} accessibilityLabel="Copiar endereço">
                   <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>{copied === 'endereco' ? '✔️' : '📋'}</Text>
@@ -702,22 +702,22 @@ const PerfilEmpresa = () => {
               ]}
             >
               <TouchableOpacity accessibilityLabel="Site" onPress={() => Linking.openURL(empresa.links.site)}>
-                <Icon name="globe" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <FontAwesome name="globe" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="Facebook" onPress={() => Linking.openURL(empresa.links.facebook)}>
-                <Icon name="facebook" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <FontAwesome name="facebook" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="Instagram" onPress={() => Linking.openURL(empresa.links.instagram)}>
-                <Icon name="instagram" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <FontAwesome name="instagram" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="WhatsApp" onPress={() => Linking.openURL(empresa.links.whatsapp)}>
-                <Icon name="whatsapp" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <FontAwesome name="whatsapp" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="Maps" onPress={() => Linking.openURL(empresa.links.maps)}>
-                <Icon name="map-marker" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <FontAwesome name="map-marker" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
               <TouchableOpacity accessibilityLabel="E-mail" onPress={() => Linking.openURL(empresa.links.email)}>
-                <Icon name="envelope" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+                <FontAwesome name="envelope" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
             </View>
           </View>

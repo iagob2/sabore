@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Dimensions } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { FontAwesome } from '@expo/vector-icons';
 import { colors } from '../style/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -121,7 +121,7 @@ const PoliticaProtecaoDados = ({ visible, onClose, tipo }: PoliticaProtecaoDados
               Política de Proteção de Dados
             </Text>
             <TouchableOpacity onPress={onClose} style={politicaStyles.closeButton}>
-              <Icon name="times" size={24} color={colors.verdeFolha} />
+              <FontAwesome name="times" size={24} color={colors.verdeFolha} />
             </TouchableOpacity>
           </View>
 

@@ -17,7 +17,9 @@ const CadastrarEmpresa = () => {
   const [cnpj, setCnpj] = useState('');
   const [telefone, setTelefone] = useState('');
   const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [rua, setRua] = useState('');
+  const [numero, setNumero] = useState('');
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
@@ -74,8 +76,24 @@ const CadastrarEmpresa = () => {
       return;
     }
     
-    Alert.alert('Cadastro de Empresa',
-      `Nome: ${nome}\nCNPJ: ${cnpj}\nTelefone: ${telefone}\nEmail: ${email}\nEndereço: ${rua}, ${bairro}, ${cidade} - ${estado}, ${cep}\nDescrição: ${descricao}\nHorário: ${horario}\nLotação: ${lotacao}\nSite: ${site}\nFacebook: ${facebook}\nInstagram: ${instagram}\nWhatsApp: ${whatsapp}\nCardápio: ${cardapio ? cardapio.name : 'Nenhum arquivo selecionado'}\nAceita Comunicação: ${aceitaComunicacao ? 'Sim' : 'Não'}\nAceita Marketing: ${aceitaMarketing ? 'Sim' : 'Não'}`
+    Alert.alert(
+      'Cadastro de Empresa',
+      `Nome: ${nome}\n` +
+      `CNPJ: ${cnpj}\n` +
+      `Telefone: ${telefone}\n` +
+      `Email: ${email}\n` +
+      `Senha: ${senha}\n` +
+      `Endereço: ${rua}, Nº ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}\n` +
+      `Descrição: ${descricao}\n` +
+      `Horário: ${horario}\n` +
+      `Lotação: ${lotacao}\n` +
+      `Site: ${site}\n` +
+      `Facebook: ${facebook}\n` +
+      `Instagram: ${instagram}\n` +
+      `WhatsApp: ${whatsapp}\n` +
+      `Cardápio: ${cardapio ? cardapio.name : 'Nenhum arquivo selecionado'}\n` +
+      `Aceita Comunicação: ${aceitaComunicacao ? 'Sim' : 'Não'}\n` +
+      `Aceita Marketing: ${aceitaMarketing ? 'Sim' : 'Não'}`
     );
   };
 
@@ -142,6 +160,7 @@ const CadastrarEmpresa = () => {
                 <Input label="CNPJ" placeholder="00.000.000/0000-00" value={cnpj} onChangeText={setCnpj} />
                 <Input label="Telefone" placeholder="(00) 00000-0000" value={telefone} onChangeText={setTelefone} />
                 <Input label="E-mail" placeholder="contato@empresa.com" value={email} onChangeText={setEmail} />
+                <Input label="Senha" placeholder="Digite uma senha" value={senha} onChangeText={setSenha} secureTextEntry />
               </View>
             </View>
 
@@ -162,6 +181,7 @@ const CadastrarEmpresa = () => {
                   📍 Endereço
                 </Text>
                 <Input label="Rua" placeholder="Rua das Flores" value={rua} onChangeText={setRua} />
+                <Input label="Número" placeholder="123" value={numero} onChangeText={setNumero} />
                 <Input label="Bairro" placeholder="Centro" value={bairro} onChangeText={setBairro} />
                 <Input label="Cidade" placeholder="Santos" value={cidade} onChangeText={setCidade} />
                 <Input label="Estado" placeholder="SP" value={estado} onChangeText={setEstado} />

@@ -48,6 +48,11 @@ export interface EnderecoLookupResponse {
   estado?: string; // uf
 }
 
+export interface SessaoResponse {
+  email: string;
+  nome?: string;
+}
+
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
@@ -84,8 +89,25 @@ async function request<T>(path: string, options?: { method?: HttpMethod; body?: 
 }
 
 // Autenticação
-export async function loginCliente(payload: LoginRequest): Promise<{ message: string; email: string }> {
-  return request('/clientes/login', { method: 'POST', body: payload });
+// Login padrão Spring Security (formLogin em POST /login)
+export async function loginCliente(payload: LoginRequest): Promise<void> {
+  const form = new URLSearchParams();
+  form.set('username', payload.email);
+  form.set('password', payload.senha);
+
+  const response = await fetch(`${API_BASE_URL}/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: form.toString(),
+    credentials: 'include',
+    redirect: 'follow',
+  });
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error('Falha no login.');
+  }
 }
 
 // CRUD Cliente
@@ -107,6 +129,31 @@ export async function atualizarCliente(id: number, payload: Partial<ClienteCreat
 
 export async function deletarCliente(id: number): Promise<void> {
   await request<void>(`/clientes/${id}`, { method: 'DELETE' });
+}
+
+// Sessão atual do usuário logado (depende do backend expor esse endpoint)
+export async function getSessao(): Promise<SessaoResponse> {
+  const data = await request<any>('/clientes/me');
+  return {
+    email: data.email ?? data.username ?? data.user?.email,
+    nome: data.nome ?? data.name ?? data.user?.nome,
+  } as SessaoResponse;
+}
+
+// Logout (Spring Security padrão usa POST /logout)
+export async function logoutCliente(): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    redirect: 'manual',
+  });
+  // Spring Security geralmente retorna 302 para /login?logout, ou 200/204 se customizado
+  if (res.status === 200 || res.status === 204 || res.status === 302 || res.status === 0) {
+    return;
+  }
+  // Se já não estiver autenticado, podemos considerar ok
+  if (res.status === 401) return;
+  throw new Error('Falha no logout');
 }
 
 // Busca CEP pelo backend (se disponível) com fallback para ViaCEP público

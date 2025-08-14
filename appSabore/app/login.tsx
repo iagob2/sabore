@@ -7,6 +7,7 @@ import { indexStyles } from '../style/indexStyles';
 import { useRouter } from 'expo-router';
 import { colors } from '../style/colors';
 import { loginCliente } from '../api/cliente';
+import { useAuthSession } from '../contexts/AuthContext';
 
 const logoApp = require('../assets/logo-sabore.png');
 const sashimiBanner = require('../assets/banner-sabore.png');
@@ -20,6 +21,7 @@ const Login = () => {
   const [erro, setErro] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
+  const { setSession } = useAuthSession();
 
   const handleLogin = async () => {
     if (!email || !senha) {
@@ -30,6 +32,8 @@ const Login = () => {
     setIsLoggingIn(true);
     try {
       await loginCliente({ email, senha });
+      // Marca sessão localmente (o Header também buscará /clientes/me)
+      setSession({ email });
       router.push('/');
     } catch (e: any) {
       setErro(e?.message || 'Falha no login.');

@@ -6,6 +6,8 @@ import { useRouter, usePathname } from 'expo-router';
 import { colors } from '../style/colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import { registerToast, toast, ToastInput } from '../hooks/use-toast';
+import { getSessao, logoutCliente } from '../api/cliente';
+import { useAuthSession } from '../contexts/AuthContext';
 
 const logoApp = require('../assets/logo-sabore.png');
 
@@ -25,6 +27,8 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
   const spinAnim = useRef(new Animated.Value(0)).current;
   const [hovered, setHovered] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { session: sessao, setSession, clearSession } = useAuthSession();
   const { width: screenWidth } = useWindowDimensions();
   const isSmallScreen = screenWidth < 400;
 
@@ -60,6 +64,43 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
       setTimeout(() => setToastVisible(false), 3200);
     });
   }, []);
+
+	// Buscar sessão atual (web: via cookie JSESSIONID)
+  React.useEffect(() => {
+    if (!sessao) {
+      (async () => {
+        try {
+          const me = await getSessao();
+          if (me && me.email) setSession(me);
+        } catch (_) {
+          // sessão não encontrada, mantém null
+        }
+      })();
+    }
+  }, [sessao, setSession]);
+
+	const displayName = React.useMemo(() => {
+		if (!sessao) return '';
+		if (sessao.nome && sessao.nome.trim().length > 0) return sessao.nome.split(' ')[0];
+		if (sessao.email) return sessao.email.split('@')[0];
+		return 'Minha conta';
+	}, [sessao]);
+
+  const handleLogout = async () => {
+		try {
+			await logoutCliente();
+      clearSession();
+			setUserMenuOpen(false);
+			router.push('/login');
+			toast({ title: 'Você saiu da conta', type: 'success' });
+		} catch (e) {
+      // Mesmo em caso de 401/redirect do Spring, vamos limpar sessão local e seguir
+      clearSession();
+      setUserMenuOpen(false);
+      router.push('/login');
+      toast({ title: 'Sessão finalizada', type: 'success' });
+		}
+	};
 
   const handleSpinAndNavigate = () => {
     spinAnim.setValue(0);
@@ -197,16 +238,49 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 
         {/* Ações - Desktop/Tablet */}
         {!isSmallScreen && (
-          <View style={headerStyles.actions}>
+			<View style={headerStyles.actions}>
             <TouchableOpacity onPress={() => router.push('/')} {...getBtnProps('/')}>
               <Text style={getBtnProps('/').textStyle}>Restaurantes</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/login')} {...getBtnProps('/login')}>
-              <Text style={getBtnProps('/login').textStyle}>Login</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/cadastro')} {...getBtnProps('/cadastro')}>
-              <Text style={getBtnProps('/cadastro').textStyle}>Cadastro</Text>
-            </TouchableOpacity>
+				{!sessao ? (
+					<>
+						<TouchableOpacity onPress={() => router.push('/login')} {...getBtnProps('/login')}>
+							<Text style={getBtnProps('/login').textStyle}>Login</Text>
+						</TouchableOpacity>
+						<TouchableOpacity onPress={() => router.push('/cadastro')} {...getBtnProps('/cadastro')}>
+							<Text style={getBtnProps('/cadastro').textStyle}>Cadastro</Text>
+						</TouchableOpacity>
+					</>
+				) : (
+					<View style={{ position: 'relative' }}>
+						<TouchableOpacity
+							onPress={() => setUserMenuOpen((v) => !v)}
+							style={headerStyles.btn}
+							{...(Platform.OS === 'web' ? {
+								onMouseEnter: () => setHovered('user-menu'),
+								onMouseLeave: () => setHovered(null),
+							} : {})}
+						>
+							<Text style={{ color: colors.verdeFolha }}>{displayName} ▼</Text>
+						</TouchableOpacity>
+						{userMenuOpen && (
+							<View style={[headerStyles.dropdownMenu, { position: 'absolute', top: 40, right: 0, minWidth: 180, paddingVertical: 4, paddingHorizontal: 0, alignItems: 'stretch' }]}> 
+								<TouchableOpacity
+									onPress={() => { setUserMenuOpen(false); router.push('/perfilUsuario'); }}
+									{...getBtnProps('/perfilUsuario', true)}
+								>
+									<Text style={[getBtnProps('/perfilUsuario', true).textStyle]}>Meu Perfil</Text>
+								</TouchableOpacity>
+								<TouchableOpacity
+									onPress={handleLogout}
+									{...getBtnProps('/logout', true)}
+								>
+									<Text style={[getBtnProps('/logout', true).textStyle]}>Sair</Text>
+								</TouchableOpacity>
+							</View>
+						)}
+					</View>
+				)}
             {/* Menu suspenso Empresas (apenas em telas maiores) */}
             <View style={{ position: 'relative' }}>
               <TouchableOpacity
@@ -271,17 +345,30 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
       </View>
 
       {/* Painel do menu mobile abaixo do header */}
-      {isSmallScreen && menuOpen && (
+		{isSmallScreen && menuOpen && (
         <View style={mobileStyles.mobileMenuPanel}>
           <TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/'); }} style={mobileStyles.mobileMenuItem}>
             <Text style={mobileStyles.mobileMenuText}>Restaurantes</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/login'); }} style={mobileStyles.mobileMenuItem}>
-            <Text style={mobileStyles.mobileMenuText}>Login</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/cadastro'); }} style={mobileStyles.mobileMenuItem}>
-            <Text style={mobileStyles.mobileMenuText}>Cadastro</Text>
-          </TouchableOpacity>
+				{!sessao ? (
+					<>
+						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/login'); }} style={mobileStyles.mobileMenuItem}>
+							<Text style={mobileStyles.mobileMenuText}>Login</Text>
+						</TouchableOpacity>
+						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/cadastro'); }} style={mobileStyles.mobileMenuItem}>
+							<Text style={mobileStyles.mobileMenuText}>Cadastro</Text>
+						</TouchableOpacity>
+					</>
+				) : (
+					<>
+						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/perfilUsuario'); }} style={mobileStyles.mobileMenuItem}>
+							<Text style={mobileStyles.mobileMenuText}>Meu Perfil</Text>
+						</TouchableOpacity>
+						<TouchableOpacity onPress={() => { setMenuOpen(false); handleLogout(); }} style={mobileStyles.mobileMenuItem}>
+							<Text style={mobileStyles.mobileMenuText}>Sair</Text>
+						</TouchableOpacity>
+					</>
+				)}
           <TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/loginEmpresas'); }} style={mobileStyles.mobileMenuItem}>
             <Text style={mobileStyles.mobileMenuText}>Login Empresas</Text>
           </TouchableOpacity>

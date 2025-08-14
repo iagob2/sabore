@@ -7,6 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import Header from '../components/Header';
 import PoliticaProtecaoDados from './politicaProtecaoDados';
 import { colors } from '../style/colors';
+import { cadastrarRestaurante, uploadRestauranteArquivo } from '../api/restaurante';
+import { buscarEnderecoPorCep } from '../api/cliente';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isLargeScreen = SCREEN_WIDTH > 900;
@@ -38,6 +40,8 @@ const CadastrarEmpresa = () => {
   const [politicaVisible, setPoliticaVisible] = useState(false);
   const [logo, setLogo] = useState(null);
   const [banner, setBanner] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
 
   const handlePickCardapio = async () => {
     const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
@@ -70,31 +74,85 @@ const CadastrarEmpresa = () => {
     }
   };
 
-  const handleRegister = () => {
+  const tryAutoFillByCep = async (value: string) => {
+    setCep(value);
+    const digits = (value || '').replace(/\D/g, '');
+    if (digits.length === 8) {
+      setIsFetchingCep(true);
+      try {
+        const endereco = await buscarEnderecoPorCep(digits);
+        setRua(endereco.rua || '');
+        setBairro(endereco.bairro || '');
+        setCidade(endereco.cidade || '');
+        setEstado(endereco.estado || '');
+      } catch (e) {
+        // mantém silencioso aqui; feedback pode ser adicionado se quiser
+      } finally {
+        setIsFetchingCep(false);
+      }
+    }
+  };
+
+  const handleRegister = async () => {
     if (!aceitaProtecaoDados) {
       Alert.alert('Atenção', 'É necessário aceitar a política de proteção de dados para continuar.');
       return;
     }
-    
-    Alert.alert(
-      'Cadastro de Empresa',
-      `Nome: ${nome}\n` +
-      `CNPJ: ${cnpj}\n` +
-      `Telefone: ${telefone}\n` +
-      `Email: ${email}\n` +
-      `Senha: ${senha}\n` +
-      `Endereço: ${rua}, Nº ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}\n` +
-      `Descrição: ${descricao}\n` +
-      `Horário: ${horario}\n` +
-      `Lotação: ${lotacao}\n` +
-      `Site: ${site}\n` +
-      `Facebook: ${facebook}\n` +
-      `Instagram: ${instagram}\n` +
-      `WhatsApp: ${whatsapp}\n` +
-      `Cardápio: ${cardapio ? cardapio.name : 'Nenhum arquivo selecionado'}\n` +
-      `Aceita Comunicação: ${aceitaComunicacao ? 'Sim' : 'Não'}\n` +
-      `Aceita Marketing: ${aceitaMarketing ? 'Sim' : 'Não'}`
-    );
+    if (!nome || !cnpj || !email || !senha) {
+      Alert.alert('Campos obrigatórios', 'Preencha Nome, CNPJ, E-mail e Senha.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const numeroParsed = Number.isFinite(parseInt(numero as any, 10)) ? parseInt(numero as any, 10) : undefined;
+      const lotacaoParsed = Number.isFinite(parseInt(lotacao as any, 10)) ? parseInt(lotacao as any, 10) : undefined;
+
+      // 1) Faz upload dos arquivos, quando houverem
+      let logoUrl: string | undefined;
+      let bannerUrl: string | undefined;
+      let cardapioUrl: string | undefined;
+      if (logo && logo.uri) {
+        try { logoUrl = await uploadRestauranteArquivo('logo', { uri: logo.uri, name: logo.name || 'logo.jpg' }); } catch {}
+      }
+      if (banner && banner.uri) {
+        try { bannerUrl = await uploadRestauranteArquivo('banner', { uri: banner.uri, name: banner.name || 'banner.jpg' }); } catch {}
+      }
+      if (cardapio && cardapio.uri) {
+        try { cardapioUrl = await uploadRestauranteArquivo('cardapio', { uri: cardapio.uri, name: cardapio.name || 'cardapio.pdf' }); } catch {}
+      }
+
+      await cadastrarRestaurante({
+        nome,
+        cnpj,
+        telefone: telefone || undefined,
+        email,
+        senha,
+        rua: rua || undefined,
+        numero: numeroParsed,
+        bairro: bairro || undefined,
+        cidade: cidade || undefined,
+        estado: estado || undefined,
+        cep: cep || undefined,
+        descricao: descricao || undefined,
+        horario: horario || undefined,
+        lotacao: lotacaoParsed,
+        site: site || undefined,
+        facebook: facebook || undefined,
+        instagram: instagram || undefined,
+        whatsapp: whatsapp || undefined,
+        cardapioUrl,
+        logoUrl,
+        bannerUrl,
+        aceitaComunicacao,
+        aceitaMarketing,
+        aceitaProtecaoDados,
+      });
+      Alert.alert('Sucesso', 'Empresa cadastrada com sucesso!');
+    } catch (e: any) {
+      Alert.alert('Erro', e?.message || 'Falha ao cadastrar empresa');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -180,12 +238,12 @@ const CadastrarEmpresa = () => {
                 <Text style={{ color: colors.verdeFolha, fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
                   📍 Endereço
                 </Text>
+                <Input label="CEP" placeholder="00000-000" value={cep} onChangeText={tryAutoFillByCep} />
+                <Input label="Estado" placeholder="SP" value={estado} onChangeText={setEstado} />
+                <Input label="Cidade" placeholder="Santos" value={cidade} onChangeText={setCidade} />
+                <Input label="Bairro" placeholder="Centro" value={bairro} onChangeText={setBairro} />
                 <Input label="Rua" placeholder="Rua das Flores" value={rua} onChangeText={setRua} />
                 <Input label="Número" placeholder="123" value={numero} onChangeText={setNumero} />
-                <Input label="Bairro" placeholder="Centro" value={bairro} onChangeText={setBairro} />
-                <Input label="Cidade" placeholder="Santos" value={cidade} onChangeText={setCidade} />
-                <Input label="Estado" placeholder="SP" value={estado} onChangeText={setEstado} />
-                <Input label="CEP" placeholder="00000-000" value={cep} onChangeText={setCep} />
               </View>
             </View>
 
@@ -424,7 +482,7 @@ const CadastrarEmpresa = () => {
 
           {/* Botão de Registro */}
           <View style={{ alignItems: 'center' }}>
-            <TouchableOpacity 
+              <TouchableOpacity 
               onPress={handleRegister} 
               style={{ 
                 backgroundColor: aceitaProtecaoDados ? colors.verdeFolha : '#ccc', 
@@ -439,10 +497,10 @@ const CadastrarEmpresa = () => {
                 shadowRadius: 8,
                 elevation: 6
               }}
-              disabled={!aceitaProtecaoDados}
+              disabled={submitting || !aceitaProtecaoDados}
             >
               <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 18 }}>
-                {aceitaProtecaoDados ? '📝 Registrar Empresa' : 'Aceite a política de dados para continuar'}
+                {aceitaProtecaoDados ? (submitting ? 'Enviando...' : '📝 Registrar Empresa') : 'Aceite a política de dados para continuar'}
               </Text>
             </TouchableOpacity>
             

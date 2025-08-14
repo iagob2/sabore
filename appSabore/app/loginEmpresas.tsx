@@ -5,6 +5,7 @@ import Input from '../components/Input';
 import ActionButton from '../components/ActionButton';
 import { indexStyles } from '../style/indexStyles';
 import { useRouter } from 'expo-router';
+import { loginRestaurante } from '../api/restaurante';
 
 const logoApp = require('../assets/logo-sabore.png');
 const sashimiBanner = require('../assets/banner-sabore.png');
@@ -13,18 +14,27 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const isLargeScreen = SCREEN_WIDTH > 700;
 
 const LoginEmpresas = () => {
-  const [cnpj, setCnpj] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const router = useRouter();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLogin = () => {
-    if (!cnpj || !senha) {
+  const handleLogin = async () => {
+    if (!email || !senha) {
       setErro('Preencha todos os campos.');
       return;
     }
     setErro('');
-    alert(`CNPJ: ${cnpj}\nSenha: ${senha}`);
+    setIsLoggingIn(true);
+    try {
+      await loginRestaurante({ email, senha });
+      router.push('/perfilEmpresa');
+    } catch (e: any) {
+      setErro(e?.message || 'Falha no login.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -135,12 +145,12 @@ const LoginEmpresas = () => {
                 Login Empresarial
               </Text>
               <View style={{ width: '100%', marginBottom: 10 }}>
-                <Input
-                  label="CNPJ"
-                  placeholder="Digite o CNPJ da empresa"
-                  value={cnpj}
-                  onChangeText={setCnpj}
-                />
+              <Input
+                label="E-mail"
+                placeholder="Digite o e-mail da empresa"
+                value={email}
+                onChangeText={setEmail}
+              />
               </View>
               <View style={{ width: '100%', marginBottom: 10 }}>
                 <Input
@@ -164,9 +174,9 @@ const LoginEmpresas = () => {
                   marginTop: 12,
                   backgroundColor: '#1B4022', // verde-folha
                   borderColor: '#C99E10', // amarelo-ouro
-                  opacity: cnpj && senha ? 1 : 0.6,
+                  opacity: email && senha && !isLoggingIn ? 1 : 0.6,
                 }}
-                disabled={!cnpj || !senha}
+                disabled={!email || !senha || isLoggingIn}
               />
               {/* Link para cadastro de empresa */}
               <TouchableOpacity onPress={() => router.push('/cadastrarEmpresa')} style={{ marginTop: 16 }}>

@@ -27,8 +27,8 @@ router.post('/create', async (req, res) => {
 // Função: Busca todos os pedidos de um usuário específico no Java
 router.get('/user/:userId', async (req, res) => {
     try {
-        // Faz requisição GET para /pedidos/usuario/{userId} no Java
-        const data = await backendService.sendRequest(`/pedidos/usuario/${req.params.userId}`, {}, 'GET');
+        // Faz requisição GET para /pedidos/user/{userId} no Java
+        const data = await backendService.sendRequest(`/pedidos/user/${req.params.userId}`, {}, 'GET');
         // Retorna a lista de pedidos do usuário recebida do Java
         res.json(data);
     } catch (err) {

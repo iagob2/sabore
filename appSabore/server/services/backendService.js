@@ -2,7 +2,10 @@
 const axios = require('axios');
 
 // ===== CONFIGURAÇÃO DA URL DO BACKEND CENTRAL =====
+// ===== IMPORTANTE: ALTERAR ESTA LINHA PARA CONECTAR COM BACKEND JAVA REAL =====
 // URL do backend Java - pode ser configurada por variável de ambiente
+// ATUAL: http://localhost:8080/api (para desenvolvimento local)
+// ALTERAR PARA: http://IP-DO-SEU-COLEGA:8080/api (para backend real)
 const BACKEND_CENTRAL_URL = process.env.BACKEND_CENTRAL_URL || 'http://localhost:8080/api';
 
 // ===== CONFIGURAÇÃO DE TIMEOUT =====

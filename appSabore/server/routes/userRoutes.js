@@ -10,8 +10,8 @@ const backendService = require('../services/backendService');
 // Função: Recebe email e senha do frontend, envia para o Java, retorna resposta
 router.post('/login', async (req, res) => {
     try {
-        // Envia dados de login para o endpoint /login do backend Java
-        const data = await backendService.sendRequest('/login', req.body);
+        // Envia dados de login para o endpoint /users/login do backend Java
+        const data = await backendService.sendRequest('/users/login', req.body);
         // Retorna a resposta do Java diretamente para o frontend
         res.json(data);
     } catch (err) {
@@ -27,8 +27,8 @@ router.post('/login', async (req, res) => {
 // Função: Recebe dados do novo cliente, envia para o Java, retorna cliente criado
 router.post('/register', async (req, res) => {
     try {
-        // Envia dados de cadastro para o endpoint /clientes do Java
-        const data = await backendService.sendRequest('/clientes', req.body);
+        // Envia dados de cadastro para o endpoint /users/register do Java
+        const data = await backendService.sendRequest('/users/register', req.body);
         // Retorna os dados do cliente criado pelo Java
         res.json(data);
     } catch (err) {
@@ -84,8 +84,8 @@ router.get('/cep/:cep', async (req, res) => {
         if (!/^\d{8}$/.test(cep)) {
             return res.status(400).json({ error: 'CEP deve conter exatamente 8 dígitos' });
         }
-        // Faz requisição GET para /viacep/{cep} no Java
-        const data = await backendService.sendRequest(`/viacep/${cep}`, {}, 'GET');
+        // Faz requisição GET para /cep/{cep} no Java
+        const data = await backendService.sendRequest(`/cep/${cep}`, {}, 'GET');
         // Retorna os dados do endereço encontrado pelo Java
         res.json(data);
     } catch (err) {

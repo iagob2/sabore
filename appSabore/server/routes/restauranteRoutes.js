@@ -27,8 +27,8 @@ router.post('/login', async (req, res) => {
 // Função: Recebe dados do novo restaurante, envia para o Java, retorna restaurante criado
 router.post('/register', async (req, res) => {
     try {
-        // Envia dados de cadastro para o endpoint /restaurantes do Java
-        const data = await backendService.sendRequest('/restaurantes', req.body);
+        // Envia dados de cadastro para o endpoint /restaurantes/register do Java
+        const data = await backendService.sendRequest('/restaurantes/register', req.body);
         // Retorna os dados do restaurante criado pelo Java
         res.json(data);
     } catch (err) {

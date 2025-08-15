@@ -110,36 +110,57 @@ export async function uploadRestauranteArquivo(tipo: 'logo' | 'banner' | 'cardap
   const form = new FormData();
   // Em navegadores, o terceiro parâmetro define o nome do arquivo
   form.append('file', blob as any, filename);
-  form.append('tipo', tipo);
-
-  const candidates = [
-    `/restaurantes/upload/${tipo}`,
-    `/restaurantes/upload`,
-    `/upload/${tipo}`,
-    `/upload`,
+  
+  // Baseado no controller, vamos usar os endpoints corretos
+  const endpoints = [
+    `/restaurantes/upload/${tipo}`, // Endpoint com tipo na URL
+    `/restaurantes/upload`          // Endpoint com tipo como RequestParam
   ];
 
   let lastErr: any = null;
-  for (const path of candidates) {
-    try {
-      const uploadRes = await fetch(`${API_BASE_URL}${path}`, {
-        method: 'POST',
-        body: form as any,
-        credentials: 'include',
-      });
-      if (!uploadRes.ok) {
-        lastErr = new Error(`Falha no upload (${uploadRes.status})`);
-        continue;
-      }
+  
+  // Primeiro tenta com tipo na URL
+  try {
+    const uploadRes = await fetch(`${API_BASE_URL}${endpoints[0]}`, {
+      method: 'POST',
+      body: form as any,
+      credentials: 'include',
+    });
+    
+    if (uploadRes.ok) {
       const data = await uploadRes.json();
-      const url: string | undefined = data.url || data.fileUrl || data.location;
+      const url: string | undefined = data.url;
       if (!url) throw new Error('Resposta de upload sem URL');
       return url;
-    } catch (e) {
-      lastErr = e;
-      // tenta próximo endpoint
     }
+    lastErr = new Error(`Falha no upload com tipo na URL (${uploadRes.status})`);
+  } catch (e) {
+    lastErr = e;
   }
+
+  // Se falhar, tenta com tipo como RequestParam
+  try {
+    const formWithTipo = new FormData();
+    formWithTipo.append('file', blob as any, filename);
+    formWithTipo.append('tipo', tipo); // Adiciona tipo como RequestParam
+    
+    const uploadRes = await fetch(`${API_BASE_URL}${endpoints[1]}`, {
+      method: 'POST',
+      body: formWithTipo as any,
+      credentials: 'include',
+    });
+    
+    if (uploadRes.ok) {
+      const data = await uploadRes.json();
+      const url: string | undefined = data.url;
+      if (!url) throw new Error('Resposta de upload sem URL');
+      return url;
+    }
+    lastErr = new Error(`Falha no upload com RequestParam (${uploadRes.status})`);
+  } catch (e) {
+    lastErr = e;
+  }
+
   throw (lastErr || new Error('Falha ao fazer upload'));
 }
 

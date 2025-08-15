@@ -12,6 +12,9 @@
         "projectId": "daaae030-ca5b-4165-af73-650f1f1a976a"
       }
     },
-    "owner": "leonardorenner"
+    "owner": "leonardorenner",
+    "android": {
+      "package": "com.anonymous.sabore"
+    }
   }
 }

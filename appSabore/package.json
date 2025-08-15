@@ -1,21 +1,35 @@
 {
   "name": "appsabore",
+  "slug": "sabore-app",
+  "platforms": [
+    "ios",
+    "android",
+    "web"
+  ],
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "homepage": "./",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "electron": "concurrently \"npm run web\" \"wait-on http://localhost:19006 && electron .\"",
+    "electron-dev": "electron .",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "deploy": "npx expo export -p web && npx eas-cli@latest deploy"
+    "deploy": "npx expo export -p web && npx eas-cli@latest deploy",
+    "build-web": "npx expo export -p web",
+    "build-desktop": "npm run build-web && electron-builder",
+    "pack-desktop": "npm run build-web && electron-builder --dir"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
     "expo": "^53.0.4",
     "expo-constants": "~17.1.4",
     "expo-document-picker": "~13.1.6",
     "expo-image-picker": "~16.1.4",
     "expo-linear-gradient": "^14.1.5",
     "expo-linking": "~7.1.4",
+    "expo-location": "~18.1.6",
     "expo-router": "~5.0.3",
     "expo-splash-screen": "~0.30.7",
     "expo-status-bar": "~2.2.3",
@@ -30,14 +44,43 @@
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "^0.20.0",
     "react-toastify": "^11.0.5",
-    "tailwindcss": "^4.1.11",
-    "expo-location": "~18.1.6",
-    "@expo/metro-runtime": "~5.0.4"
+    "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
+    "@babel/core": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "@electron-forge/cli": "^7.8.3",
     "@types/react": "~19.0.10",
-    "typescript": "~5.8.3"
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "electron-is-dev": "^3.0.1",
+    "typescript": "~5.8.3",
+    "wait-on": "^8.0.4"
   },
-  "private": true
+  "private": true,
+  "build": {
+    "appId": "com.sabore.app",
+    "productName": "Sabore",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop/main.js",
+      "assets/**/*"
+    ],
+    "mac": {
+      "icon": "assets/icon.png",
+      "category": "public.app-category.food-and-drink"
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": "nsis"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": "AppImage"
+    }
+  }
 }

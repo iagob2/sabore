@@ -55,7 +55,7 @@ export interface SessaoResponse {
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 async function request<T>(path: string, options?: { method?: HttpMethod; body?: unknown }): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

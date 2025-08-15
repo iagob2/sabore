@@ -157,11 +157,25 @@ const Index = () => {
   ];
 
   const handleCardClick = (id: string) => {
-    const card = cardData.find(c => c.id === id);
-    toast({
-      title: "Prato Selecionado",
-      description: `Você escolheu: ${card?.name}`,
-    });
+    const card = todosOsCards.find(c => c.id === id);
+    if (card) {
+      // Navegar para o perfil da empresa
+      router.push({
+        pathname: '/perfilEmpresa',
+        params: { 
+          id: id,
+          // Se temos dados da API, passamos eles
+          ...(restaurantes.length > 0 && { 
+            restauranteData: JSON.stringify(restaurantes.find(r => r.id.toString() === id))
+          })
+        }
+      });
+    } else {
+      toast({
+        title: "Restaurante Selecionado",
+        description: `Você escolheu: ${card?.name}`,
+      });
+    }
   };
 
   // Ofertas dos restaurantes para o carrossel do topo

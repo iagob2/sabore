@@ -28,8 +28,18 @@ const LoginEmpresas = () => {
     setErro('');
     setIsLoggingIn(true);
     try {
-      await loginRestaurante({ email, senha });
-      router.push('/perfilEmpresa');
+      const restauranteLogado = await loginRestaurante({ email, senha });
+      console.log('Restaurante logado com sucesso:', restauranteLogado);
+      
+      // Navegar para gerenciaEmpresa passando o ID do restaurante
+      router.push({
+        pathname: '/gerenciaEmpresa',
+        params: { 
+          id: restauranteLogado.id.toString(),
+          // Passando dados como string para evitar problemas de serialização
+          restauranteData: JSON.stringify(restauranteLogado)
+        }
+      });
     } catch (e: any) {
       setErro(e?.message || 'Falha no login.');
     } finally {

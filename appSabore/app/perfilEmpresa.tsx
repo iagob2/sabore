@@ -9,6 +9,7 @@ import CardPrato from '../components/CardPrato';
 import StarRating from '../components/StarRating';
 import { colors } from '../style/colors';
 import { buscarRestaurante, RestauranteResponse, API_BASE_URL } from '../api/restaurante';
+import { buscarItensPorRestaurante, ItemRestauranteResponse } from '../api/itemRestaurante';
 import { toast } from '../hooks/use-toast';
 
 const perfilEmpresaStyles = StyleSheet.create({
@@ -546,6 +547,10 @@ const PerfilEmpresa = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Estados para itens/pratos do restaurante
+  const [itensRestaurante, setItensRestaurante] = useState<ItemRestauranteResponse[]>([]);
+  const [loadingItens, setLoadingItens] = useState(false);
+  
   // Estados do modal de pratos
   const [copied, setCopied] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -560,6 +565,246 @@ const PerfilEmpresa = () => {
   const [observacaoUsuario, setObservacaoUsuario] = useState('');
   const [estrelasPressionadas, setEstrelasPressionadas] = useState(false);
   const [modalCardapioVisible, setModalCardapioVisible] = useState(false);
+
+  // Função para adaptar item da API para formato do CardPrato
+  const adaptarItemParaCardPrato = (item: ItemRestauranteResponse) => {
+    console.log('🔄 Adaptando item:', item);
+    
+    // Array de imagens padrão para variar - mapeamento inteligente por nome
+    const imagensPadraoItem = [
+      require('../assets/pratos/prato1.png'),
+      require('../assets/pratos/prato2.png'),
+      require('../assets/pratos/prato3.png'),
+      require('../assets/pratos/feijoada.png'),
+      require('../assets/pratos/moqueca.png'),
+      require('../assets/pratos/pao-queijo.png'),
+      require('../assets/pratos/brigadeiro.png'),
+      require('../assets/pratos/acaraje.png')
+    ];
+    
+    // Mapeamento inteligente de pratos por nome
+    const getImagemEspecifica = (nomePrato: string) => {
+      const nome = nomePrato.toLowerCase();
+      if (nome.includes('acarajé') || nome.includes('acaraje')) {
+        return require('../assets/pratos/acaraje.png');
+      }
+      if (nome.includes('moqueca')) {
+        return require('../assets/pratos/moqueca.png');
+      }
+      if (nome.includes('feijoada')) {
+        return require('../assets/pratos/feijoada.png');
+      }
+      if (nome.includes('brigadeiro')) {
+        return require('../assets/pratos/brigadeiro.png');
+      }
+      if (nome.includes('pão de queijo') || nome.includes('pao de queijo')) {
+        return require('../assets/pratos/pao-queijo.png');
+      }
+      if (nome.includes('tempurá') || nome.includes('tempura')) {
+        return require('../assets/pratos/prato2.png'); // Tempurá pode usar prato2
+      }
+      if (nome.includes('vinagrete') || nome.includes('salada')) {
+        return require('../assets/pratos/salada.png');
+      }
+      // Fallback baseado no ID para outros pratos
+      return imagensPadraoItem[item.id % imagensPadraoItem.length];
+    };
+    
+    // Selecionar imagem específica baseada no nome do prato
+    const imagemEspecifica = getImagemEspecifica(item.nome || '');
+    let imageSource = imagemEspecifica;
+    
+    console.log('🎯 Imagem selecionada para', item.nome, ':', typeof imageSource);
+    if (item.imagemUrl && item.imagemUrl.trim() !== '') {
+      let urlCompleta = item.imagemUrl;
+      
+      console.log('🖼️ Processando imagem do item:', item.nome);
+      console.log('🖼️ URL original:', item.imagemUrl);
+      
+      // Se não é uma URL completa, construir com API_BASE_URL
+      if (!item.imagemUrl.startsWith('http://') && !item.imagemUrl.startsWith('https://')) {
+        urlCompleta = `${API_BASE_URL}${item.imagemUrl.startsWith('/') ? '' : '/'}${item.imagemUrl}`;
+        console.log('🔗 URL construída com API_BASE_URL:', urlCompleta);
+      }
+      // Forçar HTTP em vez de HTTPS para evitar problemas de certificado em desenvolvimento
+      else if (urlCompleta.startsWith('https://localhost') || urlCompleta.startsWith('https://127.0.0.1')) {
+        urlCompleta = urlCompleta.replace('https://', 'http://');
+        console.log('🔒 Convertendo HTTPS para HTTP:', urlCompleta);
+      }
+      
+      // Sempre tentar usar a imagem real primeiro
+      try {
+        // Validar se a URL parece válida
+        new URL(urlCompleta);
+        
+        // Verificar se não é uma URL obviamente de exemplo
+        const isExampleUrl = item.imagemUrl.includes('exemplo.com') || 
+                            item.imagemUrl.includes('placeholder.com') ||
+                            item.imagemUrl.includes('example.com');
+        
+        if (isExampleUrl) {
+          console.log('🚫 URL de exemplo detectada, mas vamos tentar carregar mesmo assim:', urlCompleta);
+          // Mesmo sendo exemplo, vamos tentar - se falhar, o ImageWithFallback cuida
+        }
+        
+        imageSource = { uri: urlCompleta };
+        console.log('✅ Usando URL da imagem:', urlCompleta);
+        
+      } catch (e) {
+        console.log('❌ URL da imagem inválida:', urlCompleta, 'Erro:', e);
+        console.log('🔄 Usando imagem padrão baseada no ID');
+      }
+    } else {
+      console.log('⚠️ Item sem imagemUrl, usando imagem padrão baseada no ID');
+    }
+    
+    // Usar descricao como ingredientes se disponível
+    const ingredientes = item.descricao ? item.descricao.split(',').map(i => i.trim()) : ['Ingredientes não informados'];
+    
+    // Formatação do preço para exibição
+    const valorFormatado = `R$ ${item.preco?.toFixed(2).replace('.', ',') || '0,00'}`;
+    
+    console.log('💰 Formatação do preço:', {
+      precoOriginal: item.preco,
+      valorFormatado: valorFormatado
+    });
+    
+    console.log('🥘 Formatação dos ingredientes:', {
+      descricaoOriginal: item.descricao,
+      ingredientesArray: ingredientes,
+      ingredientesString: ingredientes.join(', ')
+    });
+    
+    const adaptado = {
+      // Propriedades que o CardPrato espera (formato correto)
+      imagem: imageSource,
+      imagemFallback: imagemEspecifica, // Para fallback manual se necessário
+      nome: item.nome || 'Prato sem nome',
+      ingredientes: ingredientes.join(', '), // CardPrato espera string, não array
+      valor: valorFormatado,
+      avaliacao: 4.5,
+      
+      // Propriedades extras para compatibilidade com outros componentes
+      id: item.id.toString(),
+      name: item.nome || 'Prato sem nome',
+      price: item.preco || 0,
+      preco: item.preco || 0,
+      description: item.descricao || 'Delicioso prato preparado com carinho',
+      image: imageSource,
+      category: 'Prato Principal',
+      available: true,
+      ingredients: ingredientes, // Array para outros componentes
+      prepTime: 20,
+      rating: 4.5,
+      
+      _debug: {
+        originalItem: item,
+        hasImage: !!item.imagemUrl,
+        restauranteId: item.restaurante?.id,
+        finalImageSource: imageSource,
+        ingredientesFromDescricao: ingredientes,
+        valorFormatado: valorFormatado,
+        precoOriginal: item.preco
+      }
+    };
+    
+    console.log('✅ Item adaptado final:', {
+      nome: adaptado.nome,
+      valor: adaptado.valor,
+      ingredientes: adaptado.ingredientes,
+      imagemTipo: typeof adaptado.imagem,
+      imagemUri: adaptado.imagem?.uri || 'local',
+      imagemFallback: typeof adaptado.imagemFallback
+    });
+    
+    return adaptado;
+  };
+
+  // Função de teste com dados reais do JSON fornecido
+  const testarComDadosReais = () => {
+    const dadosExemplo = [
+      {"id":4,"nome":"Acarajé","descricao":"Feijão-fradinho, camarão, vatapá, pimenta","preco":18.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":5,"nome":"Cozinha da Mãe"}},
+      {"id":5,"nome":"Moqueca de Camarão","descricao":"Camarão, leite de coco, azeite de dendê","preco":42.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":5,"nome":"Cozinha da Mãe"}},
+      {"id":7,"nome":"Vinagrete","descricao":"Tomate, cebola, pimentão, vinagre","preco":16.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":4,"nome":"Brasil Brasileiro"}}
+    ];
+    
+    console.log('🧪 === TESTE COM DADOS REAIS DO JSON ===');
+    console.log('📋 Dados de exemplo:', dadosExemplo);
+    
+    // Filtrar apenas itens do restaurante atual
+    const itensFiltrados = dadosExemplo.filter(item => item.restaurante.id === empresa?.id);
+    console.log('🎯 Itens filtrados para restaurante', empresa?.id, ':', itensFiltrados);
+    
+    if (itensFiltrados.length > 0) {
+      console.log('✅ Testando adaptação com dados filtrados...');
+      setItensRestaurante(itensFiltrados as any);
+    } else {
+      console.log('⚠️ Nenhum item encontrado para este restaurante no teste');
+    }
+  };
+
+  // Função para carregar itens do restaurante
+  const carregarItensRestaurante = async (restauranteId: number) => {
+    try {
+      setLoadingItens(true);
+      console.log('🍽️ === CARREGANDO ITENS DO RESTAURANTE ===');
+      console.log('🆔 Restaurante ID:', restauranteId);
+      console.log('🔗 API_BASE_URL:', API_BASE_URL);
+      console.log('🌐 URL completa:', `${API_BASE_URL}/itens/restaurante/${restauranteId}`);
+      console.log('🔧 Controller público: /itens/restaurante/{restauranteId}');
+      console.log('🔧 Service: buscarItensPorRestaurante() -> findByRestauranteIdOrderByNomeAsc()');
+      
+      const itens = await buscarItensPorRestaurante(restauranteId);
+      console.log('✅ Resposta da API recebida!');
+      console.log('📊 Quantidade de itens:', itens?.length || 0);
+      console.log('📋 Dados completos dos itens:', itens);
+      
+      // Verificar se está vindo dados do endpoint correto
+      if (itens && itens.length > 0) {
+        const restaurantesUnicos = [...new Set(itens.map(item => item.restaurante?.id))];
+        console.log('🏪 Restaurantes únicos nos itens:', restaurantesUnicos);
+        console.log('🎯 Esperado restaurante ID:', restauranteId);
+        
+        if (restaurantesUnicos.length > 1) {
+          console.warn('⚠️ ATENÇÃO: Recebendo itens de múltiplos restaurantes! Verifique se está usando /itens/restaurante/{id}');
+        }
+      }
+      
+      if (itens && itens.length > 0) {
+        console.log('🔍 Primeiro item detalhado:', itens[0]);
+        itens.forEach((item, index) => {
+          console.log(`📝 Item ${index + 1}:`, {
+            id: item.id,
+            nome: item.nome,
+            preco: item.preco,
+            descricao: item.descricao,
+            imagemUrl: item.imagemUrl,
+            restauranteId: item.restaurante?.id
+          });
+        });
+      } else {
+        console.log('⚠️ Nenhum item encontrado para este restaurante');
+      }
+      
+      setItensRestaurante(itens || []);
+    } catch (err) {
+      console.error('❌ ERRO ao carregar itens do restaurante:', err);
+      console.error('🔍 Detalhes do erro:', {
+        message: err instanceof Error ? err.message : 'Erro desconhecido',
+        restauranteId,
+        apiUrl: `${API_BASE_URL}/itens/restaurante/${restauranteId}`
+      });
+      
+      // Em caso de erro, testar com dados de exemplo
+      console.log('🧪 Tentando teste com dados de exemplo...');
+      testarComDadosReais();
+      
+      setItensRestaurante([]);
+    } finally {
+      setLoadingItens(false);
+      console.log('🏁 Carregamento de itens finalizado');
+    }
+  };
 
   // Função para carregar dados do restaurante
   const carregarDadosRestaurante = async () => {
@@ -587,6 +832,9 @@ const PerfilEmpresa = () => {
       }
 
       setEmpresa(restaurante);
+
+      // Carregar itens do restaurante após carregar os dados
+      await carregarItensRestaurante(restaurante.id);
 
     } catch (err) {
       console.error('❌ Erro ao carregar dados do restaurante:', err);
@@ -816,11 +1064,64 @@ const PerfilEmpresa = () => {
   }
 
   // Seleciona os pratos conforme o restaurante
-  const isBrasileiro = empresa.nome === 'Brasil Brasileiro';
-  const isCozinhaMae = empresa.nome === 'Cozinha da Mãe';
-  const pratosQuentesExibir = isBrasileiro ? pratosBrasileiros.quentes : isCozinhaMae ? pratosCozinhaMae.quentes : pratosQuentes;
-  const pratosFriosExibir = isBrasileiro ? pratosBrasileiros.frios : isCozinhaMae ? pratosCozinhaMae.frios : pratosFrios;
-  const pratosFavoritosExibir = isBrasileiro ? pratosBrasileiros.favoritos : isCozinhaMae ? pratosCozinhaMae.favoritos : pratosFavoritos;
+  // Organizar pratos reais por categoria
+  console.log('🔄 === PROCESSANDO PRATOS PARA EXIBIÇÃO ===');
+  console.log('📦 Itens do restaurante disponíveis:', itensRestaurante.length);
+  
+  const pratosAdaptados = itensRestaurante.map((item, index) => {
+    console.log(`🔄 Adaptando item ${index + 1}:`, item);
+    const adaptado = adaptarItemParaCardPrato(item);
+    console.log(`✅ Item adaptado ${index + 1}:`, adaptado);
+    return adaptado;
+  });
+  
+  console.log('📋 Total de pratos adaptados:', pratosAdaptados.length);
+  
+  // Como todos os pratos do backend são "Prato Principal", vamos distribuir de forma simples
+  console.log('📊 Distribuindo pratos reais entre categorias...');
+  
+  // Dividir os pratos em 3 grupos para as 3 seções
+  const totalPratos = pratosAdaptados.length;
+  const pratosQuentesReais = pratosAdaptados.slice(0, Math.ceil(totalPratos / 2)); // Primeira metade
+  const pratosFriosReais = pratosAdaptados.slice(Math.ceil(totalPratos / 2)); // Segunda metade
+  const pratosFavoritosReais = pratosAdaptados.slice(0, Math.min(3, totalPratos)); // Primeiros 3 como favoritos
+  
+  console.log('📊 Distribuição por categoria:');
+  console.log('🔥 Quentes:', pratosQuentesReais.length);
+  console.log('🧊 Frios:', pratosFriosReais.length);
+  console.log('⭐ Favoritos:', pratosFavoritosReais.length);
+  
+  // Fallback para dados mock se não houver pratos reais
+  const isBrasileiro = empresa?.nome === 'Brasil Brasileiro';
+  const isCozinhaMae = empresa?.nome === 'Cozinha da Mãe';
+  
+  const pratosQuentesExibir = pratosQuentesReais.length > 0 ? pratosQuentesReais : 
+    (isBrasileiro ? pratosBrasileiros.quentes : isCozinhaMae ? pratosCozinhaMae.quentes : pratosQuentes);
+    
+  const pratosFriosExibir = pratosFriosReais.length > 0 ? pratosFriosReais :
+    (isBrasileiro ? pratosBrasileiros.frios : isCozinhaMae ? pratosCozinhaMae.frios : pratosFrios);
+    
+  const pratosFavoritosExibir = pratosFavoritosReais.length > 0 ? pratosFavoritosReais :
+    (isBrasileiro ? pratosBrasileiros.favoritos : isCozinhaMae ? pratosCozinhaMae.favoritos : pratosFavoritos);
+
+  console.log('🎯 Pratos finais para exibição:');
+  console.log('🔥 Quentes a exibir:', pratosQuentesExibir.length, pratosQuentesExibir);
+  console.log('🧊 Frios a exibir:', pratosFriosExibir.length, pratosFriosExibir);
+  console.log('⭐ Favoritos a exibir:', pratosFavoritosExibir.length, pratosFavoritosExibir);
+  
+  // Log específico para debug de renderização
+  console.log('🖥️ === DEBUG DE RENDERIZAÇÃO ===');
+  console.log('🏪 Empresa atual:', empresa?.nome, 'ID:', empresa?.id);
+  console.log('📦 itensRestaurante estado:', itensRestaurante.length, 'itens');
+  console.log('🔄 pratosAdaptados:', pratosAdaptados.length, 'pratos adaptados');
+  console.log('⚡ loadingItens:', loadingItens);
+  
+  // Testar se pelo menos um prato vai ser renderizado
+  if (pratosQuentesExibir.length > 0 || pratosFriosExibir.length > 0 || pratosFavoritosExibir.length > 0) {
+    console.log('✅ PELO MENOS UMA SEÇÃO TEM PRATOS PARA EXIBIR');
+  } else {
+    console.log('❌ NENHUMA SEÇÃO TEM PRATOS PARA EXIBIR - PROBLEMA ENCONTRADO!');
+  }
 
   // Função para validar se URL de imagem é válida
   const isValidImageUrl = (url: string | null | undefined): boolean => {
@@ -1128,9 +1429,12 @@ const PerfilEmpresa = () => {
                     }} 
                     style={{ marginBottom: 18, width: '100%' }}
                   >
-                    {pratosQuentesExibir.map((prato, idx) => (
-                      <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
-                    ))}
+                    {pratosQuentesExibir.map((prato, idx) => {
+                      console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, prato);
+                      return (
+                        <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                      );
+                    })}
                   </ScrollView>
                 </View>
                 {/* Categoria Frios */}

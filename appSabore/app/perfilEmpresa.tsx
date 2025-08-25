@@ -11,6 +11,8 @@ import { colors } from '../style/colors';
 import { buscarRestaurante, RestauranteResponse, API_BASE_URL } from '../api/restaurante';
 import { buscarItensPorRestaurante, ItemRestauranteResponse } from '../api/itemRestaurante';
 import { toast } from '../hooks/use-toast';
+import { useCart, generateCartId, CartItem } from '../contexts/CartContext';
+import { useAuthSession } from '../contexts/AuthContext';
 
 const perfilEmpresaStyles = StyleSheet.create({
   bannerContainer: {
@@ -279,221 +281,11 @@ const empresaData = {
   },
 };
 
-const pratosQuentes = [
-  {
-    imagem: require('../assets/pratos/prato1.png'),
-    nome: 'Yakissoba',
-    ingredientes: 'Macarrão, legumes, carne, molho especial',
-    valor: 'R$ 32,00',
-    avaliacao: 4.7,
-  },
-  {
-    imagem: require('../assets/pratos/prato2.png'),
-    nome: 'Tempurá',
-    ingredientes: 'Legumes empanados, camarão',
-    valor: 'R$ 28,00',
-    avaliacao: 4.5,
-  },
-  {
-    imagem: require('../assets/pratos/prato3.png'),
-    nome: 'Lamen',
-    ingredientes: 'Macarrão, caldo, ovo, carne de porco',
-    valor: 'R$ 36,00',
-    avaliacao: 4.8,
-  },
-];
-const pratosFrios = [
-  {
-    imagem: require('../assets/pratos/prato1.png'),
-    nome: 'Sashimi',
-    ingredientes: 'Fatias de salmão fresco',
-    valor: 'R$ 38,00',
-    avaliacao: 4.9,
-  },
-  {
-    imagem: require('../assets/pratos/prato2.png'),
-    nome: 'Ceviche',
-    ingredientes: 'Peixe branco, limão, cebola roxa',
-    valor: 'R$ 29,00',
-    avaliacao: 4.6,
-  },
-  {
-    imagem: require('../assets/pratos/prato3.png'),
-    nome: 'Uramaki',
-    ingredientes: 'Arroz, salmão, nori, cream cheese',
-    valor: 'R$ 34,00',
-    avaliacao: 4.7,
-  },
-];
-const pratosFavoritos = [
-  {
-    imagem: require('../assets/pratos/prato1.png'),
-    nome: 'Hot Roll',
-    ingredientes: 'Salmão, cream cheese, empanado',
-    valor: 'R$ 27,00',
-    avaliacao: 5.0,
-  },
-  {
-    imagem: require('../assets/pratos/prato2.png'),
-    nome: 'Combinado Especial',
-    ingredientes: 'Sushi, sashimi, uramaki',
-    valor: 'R$ 59,00',
-    avaliacao: 4.8,
-  },
-  {
-    imagem: require('../assets/pratos/prato3.png'),
-    nome: 'Temaki Salmão',
-    ingredientes: 'Cone de nori, arroz, salmão',
-    valor: 'R$ 25,00',
-    avaliacao: 4.9,
-  },
-];
 
-// Pratos brasileiros típicos
-const pratosBrasileiros = {
-  quentes: [
-    {
-      imagem: require('../assets/pratos/feijoada.png'),
-      nome: 'Feijoada',
-      ingredientes: 'Feijão preto, carne seca, linguiça, arroz, couve',
-      valor: 'R$ 38,00',
-      avaliacao: 4.9,
-    },
-    {
-      imagem: require('../assets/pratos/moqueca.png'),
-      nome: 'Moqueca Baiana',
-      ingredientes: 'Peixe, leite de coco, azeite de dendê, pimentão',
-      valor: 'R$ 44,00',
-      avaliacao: 4.8,
-    },
-    {
-      imagem: require('../assets/pratos/escondidinho.png'),
-      nome: 'Escondidinho de Carne Seca',
-      ingredientes: 'Carne seca, purê de mandioca, queijo coalho',
-      valor: 'R$ 32,00',
-      avaliacao: 4.7,
-    },
-  ],
-  frios: [
-    {
-      imagem: require('../assets/pratos/salada.png'),
-      nome: 'Salada de Palmito',
-      ingredientes: 'Palmito, tomate, cebola, azeite',
-      valor: 'R$ 22,00',
-      avaliacao: 4.6,
-    },
-    {
-      imagem: require('../assets/pratos/salada.png'),
-      nome: 'Vinagrete',
-      ingredientes: 'Tomate, cebola, pimentão, vinagre',
-      valor: 'R$ 16,00',
-      avaliacao: 4.5,
-    },
-    {
-      imagem: require('../assets/pratos/ceviche-brasileiro.png'),
-      nome: 'Ceviche Brasileiro',
-      ingredientes: 'Peixe branco, limão, cebola roxa, coentro',
-      valor: 'R$ 29,00',
-      avaliacao: 4.7,
-    },
-  ],
-  favoritos: [
-    {
-      imagem: require('../assets/pratos/pao-queijo.png'),
-      nome: 'Pão de Queijo',
-      ingredientes: 'Polvilho, queijo, ovos, leite',
-      valor: 'R$ 12,00',
-      avaliacao: 5.0,
-    },
-    {
-      imagem: require('../assets/pratos/brigadeiro.png'),
-      nome: 'Brigadeiro',
-      ingredientes: 'Leite condensado, chocolate, manteiga',
-      valor: 'R$ 8,00',
-      avaliacao: 4.9,
-    },
-    {
-      imagem: require('../assets/pratos/acaraje.png'),
-      nome: 'Acarajé',
-      ingredientes: 'Feijão-fradinho, camarão, vatapá',
-      valor: 'R$ 15,00',
-      avaliacao: 4.8,
-    },
-  ],
-};
 
-// Pratos típicos da Cozinha da Mãe
-const pratosCozinhaMae = {
-  quentes: [
-    {
-      imagem: require('../assets/pratos/acaraje.png'),
-      nome: 'Acarajé Quente',
-      ingredientes: 'Feijão-fradinho, camarão, vatapá, pimenta',
-      valor: 'R$ 18,00',
-      avaliacao: 4.8,
-    },
-    {
-      imagem: require('../assets/pratos/moqueca.png'),
-      nome: 'Moqueca de Camarão',
-      ingredientes: 'Camarão, leite de coco, azeite de dendê',
-      valor: 'R$ 42,00',
-      avaliacao: 4.7,
-    },
-    {
-      imagem: require('../assets/pratos/bobo-camarao.png'),
-      nome: 'Bobó de Camarão',
-      ingredientes: 'Camarão, mandioca, leite de coco, arroz',
-      valor: 'R$ 39,00',
-      avaliacao: 4.9,
-    },
-  ],
-  frios: [
-    {
-      imagem: require('../assets/pratos/salada.png'),
-      nome: 'Salada de Bacalhau',
-      ingredientes: 'Bacalhau, batata, cebola, azeite',
-      valor: 'R$ 28,00',
-      avaliacao: 4.6,
-    },
-    {
-      imagem: require('../assets/pratos/salada.png'),
-      nome: 'Salada de Grão-de-Bico',
-      ingredientes: 'Grão-de-bico, tomate, cebola, azeite',
-      valor: 'R$ 19,00',
-      avaliacao: 4.5,
-    },
-    {
-      imagem: require('../assets/pratos/cuscuz-paulista.png'),
-      nome: 'Cuscuz Paulista',
-      ingredientes: 'Farinha de milho, legumes, ovos, sardinha',
-      valor: 'R$ 16,00',
-      avaliacao: 4.7,
-    },
-  ],
-  favoritos: [
-    {
-      imagem: require('../assets/pratos/bolo-fuba.png'),
-      nome: 'Bolo de Fubá',
-      ingredientes: 'Fubá, ovos, leite, fermento',
-      valor: 'R$ 10,00',
-      avaliacao: 5.0,
-    },
-    {
-      imagem: require('../assets/pratos/canjica.png'),
-      nome: 'Canjica',
-      ingredientes: 'Milho branco, leite, coco, amendoim',
-      valor: 'R$ 9,00',
-      avaliacao: 4.8,
-    },
-    {
-      imagem: require('../assets/pratos/quindim.png'),
-      nome: 'Quindim',
-      ingredientes: 'Coco, ovos, açúcar',
-      valor: 'R$ 7,00',
-      avaliacao: 4.9,
-    },
-  ],
-};
+
+
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isLargeScreen = SCREEN_WIDTH > 900;
@@ -559,7 +351,9 @@ const PerfilEmpresa = () => {
   const [observacoes, setObservacoes] = useState('');
   const [ingredientesRemovidos, setIngredientesRemovidos] = useState([]);
   const [ingredientesAdicionados, setIngredientesAdicionados] = useState([]);
-  const [carrinho, setCarrinho] = useState([]);
+  // Usar contexto do carrinho
+  const { addItem: addToCart, itemCount: cartItemCount, canAddItem } = useCart();
+  const { session, isAuthenticated } = useAuthSession();
   const [modalAvaliacaoVisible, setModalAvaliacaoVisible] = useState(false);
   const [avaliacaoUsuario, setAvaliacaoUsuario] = useState(0);
   const [observacaoUsuario, setObservacaoUsuario] = useState('');
@@ -720,28 +514,7 @@ const PerfilEmpresa = () => {
     return adaptado;
   };
 
-  // Função de teste com dados reais do JSON fornecido
-  const testarComDadosReais = () => {
-    const dadosExemplo = [
-      {"id":4,"nome":"Acarajé","descricao":"Feijão-fradinho, camarão, vatapá, pimenta","preco":18.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":5,"nome":"Cozinha da Mãe"}},
-      {"id":5,"nome":"Moqueca de Camarão","descricao":"Camarão, leite de coco, azeite de dendê","preco":42.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":5,"nome":"Cozinha da Mãe"}},
-      {"id":7,"nome":"Vinagrete","descricao":"Tomate, cebola, pimentão, vinagre","preco":16.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":4,"nome":"Brasil Brasileiro"}}
-    ];
-    
-    console.log('🧪 === TESTE COM DADOS REAIS DO JSON ===');
-    console.log('📋 Dados de exemplo:', dadosExemplo);
-    
-    // Filtrar apenas itens do restaurante atual
-    const itensFiltrados = dadosExemplo.filter(item => item.restaurante.id === empresa?.id);
-    console.log('🎯 Itens filtrados para restaurante', empresa?.id, ':', itensFiltrados);
-    
-    if (itensFiltrados.length > 0) {
-      console.log('✅ Testando adaptação com dados filtrados...');
-      setItensRestaurante(itensFiltrados as any);
-    } else {
-      console.log('⚠️ Nenhum item encontrado para este restaurante no teste');
-    }
-  };
+
 
   // Função para carregar itens do restaurante
   const carregarItensRestaurante = async (restauranteId: number) => {
@@ -795,9 +568,8 @@ const PerfilEmpresa = () => {
         apiUrl: `${API_BASE_URL}/itens/restaurante/${restauranteId}`
       });
       
-      // Em caso de erro, testar com dados de exemplo
-      console.log('🧪 Tentando teste com dados de exemplo...');
-      testarComDadosReais();
+      // Em caso de erro, manter array vazio
+      console.log('⚠️ Mantendo estado vazio devido ao erro');
       
       setItensRestaurante([]);
     } finally {
@@ -905,23 +677,75 @@ const PerfilEmpresa = () => {
   }
 
   function adicionarAoCarrinho() {
-    const itemDoCarrinho = {
-      id: Date.now(),
-      prato: pratoSelecionado,
-      quantidade,
-      observacoes,
-      ingredientesRemovidos,
-      ingredientesAdicionados,
-      empresa: empresaCompleta.nome
-    };
-    
-    setCarrinho(prev => [...prev, itemDoCarrinho]);
-    console.log('Adicionado ao carrinho:', itemDoCarrinho);
-    fecharModal();
+    if (!empresa) {
+      toast({
+        title: "Erro",
+        description: "Dados do restaurante não encontrados.",
+      });
+      return;
+    }
+
+    if (!pratoSelecionado) {
+      toast({
+        title: "Erro", 
+        description: "Nenhum prato selecionado.",
+      });
+      return;
+    }
+
+    // Verificar se pode adicionar item deste restaurante
+    if (!canAddItem(empresa.id)) {
+      toast({
+        title: "Restaurante Diferente",
+        description: `Você só pode adicionar itens de um restaurante por vez. Limpe o carrinho para adicionar itens de "${empresa.nome}".`,
+      });
+      return;
+    }
+
+    try {
+      // Converter arrays para strings (formato da API)
+      const ingredientesRemovidosStr = ingredientesRemovidos.length > 0 
+        ? ingredientesRemovidos.join(', ') 
+        : undefined;
+      const ingredientesAdicionadosStr = ingredientesAdicionados.length > 0 
+        ? ingredientesAdicionados.join(', ') 
+        : undefined;
+
+      const cartItem: CartItem = {
+        cartId: generateCartId(),
+        itemRestauranteId: parseInt(pratoSelecionado.id) || 0,
+        nome: pratoSelecionado.nome,
+        preco: pratoSelecionado.preco || parseFloat(pratoSelecionado.valor?.replace('R$ ', '').replace(',', '.')) || 0,
+        imagemUrl: pratoSelecionado.imagemUrl,
+        descricao: pratoSelecionado.ingredientes,
+        quantidade,
+        observacoes: observacoes || undefined,
+        ingredientesRemovidos: ingredientesRemovidosStr,
+        ingredientesAdicionados: ingredientesAdicionadosStr,
+        restauranteId: empresa.id,
+        restauranteNome: empresa.nome
+      };
+
+      console.log('🛒 Adicionando item ao carrinho:', cartItem);
+      
+      addToCart(cartItem);
+      
+      toast({
+        title: "Item Adicionado!",
+        description: `${pratoSelecionado.nome} foi adicionado ao carrinho.`,
+      });
+      
+      fecharModal();
+    } catch (error) {
+      console.error('Erro ao adicionar ao carrinho:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao adicionar item ao carrinho.",
+      });
+    }
   }
 
   function abrirCarrinho() {
-    console.log('Carrinho atual:', carrinho);
     router.push('/carrinho');
   }
 
@@ -1014,7 +838,7 @@ const PerfilEmpresa = () => {
       <View style={indexStyles.main}>
         <Header 
           logo="Saborê" 
-          cartItemCount={carrinho.length}
+          cartItemCount={cartItemCount}
           onCartPress={abrirCarrinho}
         />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -1033,7 +857,7 @@ const PerfilEmpresa = () => {
       <View style={indexStyles.main}>
         <Header 
           logo="Saborê" 
-          cartItemCount={carrinho.length}
+          cartItemCount={cartItemCount}
           onCartPress={abrirCarrinho}
         />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -1063,8 +887,7 @@ const PerfilEmpresa = () => {
     return null;
   }
 
-  // Seleciona os pratos conforme o restaurante
-  // Organizar pratos reais por categoria
+  // Processar pratos do banco de dados
   console.log('🔄 === PROCESSANDO PRATOS PARA EXIBIÇÃO ===');
   console.log('📦 Itens do restaurante disponíveis:', itensRestaurante.length);
   
@@ -1077,51 +900,45 @@ const PerfilEmpresa = () => {
   
   console.log('📋 Total de pratos adaptados:', pratosAdaptados.length);
   
-  // Como todos os pratos do backend são "Prato Principal", vamos distribuir de forma simples
-  console.log('📊 Distribuindo pratos reais entre categorias...');
+  // Verificar se há pratos cadastrados
+  const temPratos = pratosAdaptados.length > 0;
   
-  // Dividir os pratos em 3 grupos para as 3 seções
-  const totalPratos = pratosAdaptados.length;
-  const pratosQuentesReais = pratosAdaptados.slice(0, Math.ceil(totalPratos / 2)); // Primeira metade
-  const pratosFriosReais = pratosAdaptados.slice(Math.ceil(totalPratos / 2)); // Segunda metade
-  const pratosFavoritosReais = pratosAdaptados.slice(0, Math.min(3, totalPratos)); // Primeiros 3 como favoritos
+  // Se há pratos, distribuir entre categorias
+  let pratosQuentesExibir = [];
+  let pratosFriosExibir = [];
+  let pratosFavoritosExibir = [];
   
-  console.log('📊 Distribuição por categoria:');
-  console.log('🔥 Quentes:', pratosQuentesReais.length);
-  console.log('🧊 Frios:', pratosFriosReais.length);
-  console.log('⭐ Favoritos:', pratosFavoritosReais.length);
-  
-  // Fallback para dados mock se não houver pratos reais
-  const isBrasileiro = empresa?.nome === 'Brasil Brasileiro';
-  const isCozinhaMae = empresa?.nome === 'Cozinha da Mãe';
-  
-  const pratosQuentesExibir = pratosQuentesReais.length > 0 ? pratosQuentesReais : 
-    (isBrasileiro ? pratosBrasileiros.quentes : isCozinhaMae ? pratosCozinhaMae.quentes : pratosQuentes);
+  if (temPratos) {
+    console.log('📊 Distribuindo pratos reais entre categorias...');
     
-  const pratosFriosExibir = pratosFriosReais.length > 0 ? pratosFriosReais :
-    (isBrasileiro ? pratosBrasileiros.frios : isCozinhaMae ? pratosCozinhaMae.frios : pratosFrios);
+    // Dividir os pratos em 3 grupos para as 3 seções
+    const totalPratos = pratosAdaptados.length;
+    pratosQuentesExibir = pratosAdaptados.slice(0, Math.ceil(totalPratos / 3)); // Primeiro terço
+    pratosFriosExibir = pratosAdaptados.slice(Math.ceil(totalPratos / 3), Math.ceil((totalPratos * 2) / 3)); // Segundo terço
+    pratosFavoritosExibir = pratosAdaptados.slice(Math.ceil((totalPratos * 2) / 3)); // Último terço
     
-  const pratosFavoritosExibir = pratosFavoritosReais.length > 0 ? pratosFavoritosReais :
-    (isBrasileiro ? pratosBrasileiros.favoritos : isCozinhaMae ? pratosCozinhaMae.favoritos : pratosFavoritos);
-
-  console.log('🎯 Pratos finais para exibição:');
-  console.log('🔥 Quentes a exibir:', pratosQuentesExibir.length, pratosQuentesExibir);
-  console.log('🧊 Frios a exibir:', pratosFriosExibir.length, pratosFriosExibir);
-  console.log('⭐ Favoritos a exibir:', pratosFavoritosExibir.length, pratosFavoritosExibir);
-  
-  // Log específico para debug de renderização
-  console.log('🖥️ === DEBUG DE RENDERIZAÇÃO ===');
-  console.log('🏪 Empresa atual:', empresa?.nome, 'ID:', empresa?.id);
-  console.log('📦 itensRestaurante estado:', itensRestaurante.length, 'itens');
-  console.log('🔄 pratosAdaptados:', pratosAdaptados.length, 'pratos adaptados');
-  console.log('⚡ loadingItens:', loadingItens);
-  
-  // Testar se pelo menos um prato vai ser renderizado
-  if (pratosQuentesExibir.length > 0 || pratosFriosExibir.length > 0 || pratosFavoritosExibir.length > 0) {
-    console.log('✅ PELO MENOS UMA SEÇÃO TEM PRATOS PARA EXIBIR');
+    // Se alguma categoria ficou vazia, redistribuir
+    if (pratosFriosExibir.length === 0 && totalPratos > 1) {
+      pratosFriosExibir = pratosAdaptados.slice(1, 2);
+    }
+    if (pratosFavoritosExibir.length === 0 && totalPratos > 2) {
+      pratosFavoritosExibir = pratosAdaptados.slice(2, 3);
+    }
+    
+    console.log('📊 Distribuição por categoria:');
+    console.log('🔥 Quentes:', pratosQuentesExibir.length);
+    console.log('🧊 Frios:', pratosFriosExibir.length);
+    console.log('⭐ Favoritos:', pratosFavoritosExibir.length);
   } else {
-    console.log('❌ NENHUMA SEÇÃO TEM PRATOS PARA EXIBIR - PROBLEMA ENCONTRADO!');
+    console.log('⚠️ Nenhum prato encontrado no banco de dados');
   }
+  
+  console.log('🎯 Estado final para exibição:');
+  console.log('📊 Tem pratos:', temPratos);
+  console.log('🔥 Quentes a exibir:', pratosQuentesExibir.length);
+  console.log('🧊 Frios a exibir:', pratosFriosExibir.length);
+  console.log('⭐ Favoritos a exibir:', pratosFavoritosExibir.length);
+  console.log('⚡ loadingItens:', loadingItens);
 
   // Função para validar se URL de imagem é válida
   const isValidImageUrl = (url: string | null | undefined): boolean => {
@@ -1199,11 +1016,11 @@ const PerfilEmpresa = () => {
 
   return (
     <View style={indexStyles.main}>
-      <Header 
-        logo="Japones APP" 
-        cartItemCount={carrinho.length}
-        onCartPress={abrirCarrinho}
-      />
+              <Header 
+          logo="Saborê" 
+          cartItemCount={cartItemCount}
+          onCartPress={abrirCarrinho}
+        />
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 32 }}>
         {/* Banner com gradiente e nome */}
         <View style={[perfilEmpresaStyles.bannerContainer, { height: isSmallScreen ? 160 : isMediumScreen ? 200 : 220 }]}>
@@ -1416,63 +1233,149 @@ const PerfilEmpresa = () => {
                 justifyContent: 'center',
                 display: 'flex',
               }}>
-                {/* Categoria Quentes */}
-                <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
-                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Quentes</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
-                    contentContainerStyle={{ 
-                      paddingHorizontal: 20,
+                {loadingItens ? (
+                  // Estado de loading dos pratos
+                  <View style={{ 
+                    width: '100%', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: 40,
+                    marginTop: 20 
+                  }}>
+                    <ActivityIndicator size="large" color={colors.verdeFolha} />
+                    <Text style={{ 
+                      color: colors.preto, 
+                      fontSize: 16, 
+                      marginTop: 16, 
+                      textAlign: 'center' 
+                    }}>
+                      Carregando pratos do restaurante...
+                    </Text>
+                  </View>
+                ) : !temPratos ? (
+                  // Estado vazio - sem pratos cadastrados
+                  <View style={{
+                    width: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 40,
+                    marginTop: 20
+                  }}>
+                    <View style={{
+                      backgroundColor: colors.branco,
+                      borderWidth: 2,
+                      borderColor: colors.marromFeijao,
+                      borderStyle: 'dashed',
+                      borderRadius: 16,
+                      padding: 32,
                       alignItems: 'center',
-                      justifyContent: 'center'
-                    }} 
-                    style={{ marginBottom: 18, width: '100%' }}
-                  >
-                    {pratosQuentesExibir.map((prato, idx) => {
-                      console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, prato);
-                      return (
-                        <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-                {/* Categoria Frios */}
-                <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
-                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Frios</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
-                    contentContainerStyle={{ 
-                      paddingHorizontal: 20,
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }} 
-                    style={{ marginBottom: 18, width: '100%' }}
-                  >
-                    {pratosFriosExibir.map((prato, idx) => (
-                      <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
-                    ))}
-                  </ScrollView>
-                </View>
-                {/* Categoria Favoritos */}
-                <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
-                  <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Favoritos</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
-                    contentContainerStyle={{ 
-                      paddingHorizontal: 20,
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }} 
-                    style={{ marginBottom: 18, width: '100%' }}
-                  >
-                    {pratosFavoritosExibir.map((prato, idx) => (
-                      <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
-                    ))}
-                  </ScrollView>
-                </View>
+                      maxWidth: 500,
+                      width: '100%'
+                    }}>
+                      <Text style={{ 
+                        fontSize: 48, 
+                        marginBottom: 16 
+                      }}>
+                        🍽️
+                      </Text>
+                      <Text style={{ 
+                        color: colors.verdeFolha, 
+                        fontSize: 20, 
+                        fontWeight: 'bold', 
+                        textAlign: 'center', 
+                        marginBottom: 12 
+                      }}>
+                        Cardápio em Construção
+                      </Text>
+                      <Text style={{ 
+                        color: colors.preto, 
+                        fontSize: 16, 
+                        textAlign: 'center', 
+                        marginBottom: 16,
+                        lineHeight: 22
+                      }}>
+                        Este restaurante ainda não cadastrou seus pratos no sistema.
+                      </Text>
+                      <Text style={{ 
+                        color: colors.marromFeijao, 
+                        fontSize: 14, 
+                        textAlign: 'center',
+                        fontStyle: 'italic'
+                      }}>
+                        Entre em contato diretamente com o restaurante para conhecer as opções disponíveis.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  // Estado com pratos - exibir as categorias
+                  <>
+                    {/* Categoria Quentes */}
+                    {pratosQuentesExibir.length > 0 && (
+                      <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
+                        <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Quentes</Text>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false} 
+                          contentContainerStyle={{ 
+                            paddingHorizontal: 20,
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }} 
+                          style={{ marginBottom: 18, width: '100%' }}
+                        >
+                          {pratosQuentesExibir.map((prato, idx) => {
+                            console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, prato);
+                            return (
+                              <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    )}
+                    
+                    {/* Categoria Frios */}
+                    {pratosFriosExibir.length > 0 && (
+                      <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
+                        <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Frios</Text>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false} 
+                          contentContainerStyle={{ 
+                            paddingHorizontal: 20,
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }} 
+                          style={{ marginBottom: 18, width: '100%' }}
+                        >
+                          {pratosFriosExibir.map((prato, idx) => (
+                            <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                    
+                    {/* Categoria Favoritos */}
+                    {pratosFavoritosExibir.length > 0 && (
+                      <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
+                        <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Favoritos</Text>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false} 
+                          contentContainerStyle={{ 
+                            paddingHorizontal: 20,
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }} 
+                          style={{ marginBottom: 18, width: '100%' }}
+                        >
+                          {pratosFavoritosExibir.map((prato, idx) => (
+                            <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </>
+                )}
               </View>
             </View>
       </ScrollView>

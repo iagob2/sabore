@@ -1,78 +1,59 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import Header from '../components/Header';
 import { indexStyles } from '../style/indexStyles';
 import { colors } from '../style/colors';
-
-// Dados mockados do carrinho (em uma aplicação real, isso viria de um contexto global ou estado)
-const carrinhoMock = [
-  {
-    id: 1,
-    prato: {
-      nome: 'Yakissoba',
-      imagem: require('../assets/pratos/prato1.png'),
-      valor: 'R$ 32,00',
-      avaliacao: 4.7
-    },
-    quantidade: 2,
-    observacoes: 'Bem passado, sem sal',
-    ingredientesRemovidos: ['Cebola'],
-    ingredientesAdicionados: ['Bacon'],
-    empresa: 'Sushi House'
-  },
-  {
-    id: 2,
-    prato: {
-      nome: 'Sashimi',
-      imagem: require('../assets/pratos/prato1.png'),
-      valor: 'R$ 38,00',
-      avaliacao: 4.9
-    },
-    quantidade: 1,
-    observacoes: '',
-    ingredientesRemovidos: [],
-    ingredientesAdicionados: ['Queijo Extra'],
-    empresa: 'Sushi House'
-  }
-];
+import { useCart, calculateCartTotal } from '../contexts/CartContext';
+import { useAuthSession } from '../contexts/AuthContext';
+import { criarPedido, validarPedido, formatarStatusPedido, formatarDataPedido } from '../api/pedido';
+import { toast } from '../hooks/use-toast';
 
 const Carrinho = () => {
   const router = useRouter();
-  const [carrinho, setCarrinho] = useState(carrinhoMock);
+  const { 
+    items: carrinho, 
+    itemCount, 
+    restauranteNome,
+    removeItem, 
+    updateQuantity, 
+    clearCart, 
+    getOrderData 
+  } = useCart();
+  const { session, isAuthenticated } = useAuthSession();
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+
+  // Debug: Log do estado do carrinho
+  React.useEffect(() => {
+    console.log('🛒 === DEBUG DO CARRINHO ===');
+    console.log('📦 Itens no carrinho:', carrinho);
+    console.log('🔢 Total de itens:', itemCount);
+    console.log('🏪 Nome do restaurante:', restauranteNome);
+    console.log('🔐 Autenticado:', isAuthenticated);
+    console.log('👤 Sessão:', session);
+    console.log('🎫 Token presente:', !!session?.token);
+  }, [carrinho, itemCount, restauranteNome, isAuthenticated, session]);
 
   const calcularTotal = () => {
-    return carrinho.reduce((total, item) => {
-      const valor = parseFloat(item.prato.valor.replace('R$ ', '').replace(',', '.'));
-      return total + (valor * item.quantidade);
-    }, 0);
+    return calculateCartTotal(carrinho);
   };
 
-  const atualizarQuantidade = (id: number, novaQuantidade: number) => {
-    if (novaQuantidade <= 0) {
-      removerItem(id);
-      return;
-    }
-    
-    setCarrinho(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, quantidade: novaQuantidade } : item
-      )
-    );
+  const atualizarQuantidade = (cartId: string, novaQuantidade: number) => {
+    updateQuantity(cartId, novaQuantidade);
   };
 
-  const removerItem = (id: number) => {
+  const removerItem = (cartId: string, nomeItem: string) => {
     Alert.alert(
       'Remover Item',
-      'Tem certeza que deseja remover este item do carrinho?',
+      `Tem certeza que deseja remover "${nomeItem}" do carrinho?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Remover', 
           style: 'destructive',
-          onPress: () => {
-            setCarrinho(prev => prev.filter(item => item.id !== id));
-          }
+          onPress: () => removeItem(cartId)
         }
       ]
     );
@@ -87,39 +68,200 @@ const Carrinho = () => {
         { 
           text: 'Limpar', 
           style: 'destructive',
-          onPress: () => setCarrinho([])
+          onPress: () => clearCart()
         }
       ]
     );
   };
 
-  const finalizarPedido = () => {
+  const finalizarPedido = async () => {
+    console.log('🚀 === INICIANDO FINALIZAÇÃO DO PEDIDO ===');
+    console.log('📦 Itens no carrinho:', carrinho.length);
+    console.log('🔐 Usuário autenticado:', isAuthenticated);
+    console.log('🎫 Token presente:', !!session?.token);
+    
+    // Verificar se carrinho não está vazio
     if (carrinho.length === 0) {
+      console.log('❌ Carrinho vazio - parando execução');
       Alert.alert('Carrinho Vazio', 'Adicione itens ao carrinho antes de finalizar o pedido.');
       return;
     }
 
-    Alert.alert(
-      'Finalizar Pedido',
-      `Total: R$ ${calcularTotal().toFixed(2).replace('.', ',')}\n\nDeseja finalizar o pedido?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Finalizar', 
-          onPress: () => {
-            Alert.alert('Pedido Finalizado!', 'Seu pedido foi enviado com sucesso!');
-            setCarrinho([]);
+    // Verificar se usuário está autenticado
+    if (!isAuthenticated) {
+      console.log('❌ Usuário não autenticado - parando execução');
+      Alert.alert(
+        'Login Necessário', 
+        'Você precisa estar logado para fazer pedidos.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Fazer Login', 
+            onPress: () => router.push('/login')
           }
+        ]
+      );
+      return;
+    }
+
+    // Obter dados do pedido
+    console.log('📋 Obtendo dados do pedido...');
+    const orderData = getOrderData();
+    console.log('📋 Dados obtidos:', orderData);
+    
+    if (!orderData) {
+      console.log('❌ Dados do pedido não encontrados - parando execução');
+      Alert.alert('Erro', 'Não foi possível obter os dados do pedido.');
+      return;
+    }
+
+    // Validar pedido
+    console.log('✅ Validando pedido...');
+    const validation = validarPedido(orderData);
+    console.log('✅ Resultado da validação:', validation);
+    
+    if (!validation.valido) {
+      console.log('❌ Pedido inválido:', validation.erros);
+      Alert.alert(
+        'Pedido Inválido',
+        validation.erros.join('\n'),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Confirmar pedido
+    console.log('✅ Mostrando confirmação do pedido...');
+    console.log('📋 Dados para confirmação:', {
+      restaurante: restauranteNome,
+      itens: carrinho.length,
+      total: calcularTotal().toFixed(2)
+    });
+    
+    // Usar modal customizado em vez de Alert.alert
+    console.log('🔄 Abrindo modal de confirmação...');
+    setPendingOrderData(orderData);
+    setShowConfirmModal(true);
+  };
+
+  const confirmarPedido = () => {
+    console.log('✅ === USUÁRIO CONFIRMOU O PEDIDO ===');
+    console.log('🔄 Chamando função enviarPedido...');
+    setShowConfirmModal(false);
+    if (pendingOrderData) {
+      enviarPedido(pendingOrderData);
+    }
+  };
+
+  const cancelarPedido = () => {
+    console.log('❌ Usuário cancelou o pedido');
+    setShowConfirmModal(false);
+    setPendingOrderData(null);
+  };
+
+  const enviarPedido = async (orderData: any) => {
+    console.log('🚀 === FUNÇÃO ENVIAR PEDIDO CHAMADA ===');
+    console.log('🔐 isAuthenticated:', isAuthenticated);
+    console.log('👤 session:', session);
+    
+    if (!isAuthenticated) {
+      console.log('❌ Não autenticado - saindo da função');
+      return;
+    }
+
+    try {
+      setIsSubmittingOrder(true);
+      console.log('📤 === INICIANDO ENVIO DO PEDIDO ===');
+      console.log('📤 Dados do pedido:', orderData);
+      console.log('🔐 Método de autenticação:', session?.token ? 'JWT Token' : 'Cookies');
+      console.log('🌐 API_BASE_URL:', 'http://localhost:8080');
+      console.log('🔗 URL completa:', 'http://localhost:8080/pedidos');
+
+      // Teste direto da requisição
+      console.log('🧪 === TESTE DIRETO DA REQUISIÇÃO ===');
+      try {
+        const testResponse = await fetch('http://localhost:8080/pedidos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(orderData),
+        });
+        
+        console.log('🧪 Status do teste direto:', testResponse.status);
+        console.log('🧪 Headers do teste:', Object.fromEntries(testResponse.headers.entries()));
+        
+        if (testResponse.ok) {
+          const responseData = await testResponse.json();
+          console.log('🧪 ✅ Teste direto funcionou!', responseData);
+          
+          // Limpar carrinho
+          clearCart();
+          
+          // Mostrar sucesso
+          Alert.alert('Pedido Criado!', `Pedido #${responseData.id} criado com sucesso!`);
+          return;
+        } else {
+          const errorText = await testResponse.text();
+          console.log('🧪 ❌ Erro no teste direto:', errorText);
         }
-      ]
-    );
+      } catch (testError) {
+        console.log('🧪 ❌ Erro na requisição de teste:', testError);
+      }
+
+      // Se o teste direto falhar, tentar com a função original
+      console.log('🔄 Tentando com função original...');
+      const pedidoCriado = await criarPedido(orderData, session?.token);
+      
+      console.log('✅ Pedido criado com sucesso:', pedidoCriado);
+      
+      // Limpar carrinho
+      clearCart();
+      
+      // Mostrar sucesso
+      Alert.alert(
+        'Pedido Finalizado!', 
+        `Seu pedido #${pedidoCriado.id} foi enviado com sucesso!\n\nStatus: ${formatarStatusPedido(pedidoCriado.status)}`,
+        [
+          { 
+            text: 'Ver Meus Pedidos', 
+            onPress: () => router.push('/pedidos')
+          },
+          { text: 'OK' }
+        ]
+      );
+      
+      toast({
+        title: "Pedido Enviado!",
+        description: `Pedido #${pedidoCriado.id} foi criado com sucesso.`,
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao enviar pedido:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao criar pedido';
+      
+      Alert.alert(
+        'Erro ao Finalizar Pedido',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+      
+      toast({
+        title: "Erro no Pedido",
+        description: errorMessage,
+      });
+    } finally {
+      setIsSubmittingOrder(false);
+    }
   };
 
   return (
     <View style={indexStyles.main}>
       <Header 
         logo="Saborê" 
-        cartItemCount={carrinho.length}
+        cartItemCount={itemCount}
         onCartPress={() => router.push('/carrinho')}
       />
       
@@ -132,6 +274,14 @@ const Carrinho = () => {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Mostrar restaurante quando há itens */}
+        {carrinho.length > 0 && restauranteNome && (
+          <View style={[styles.restaurantInfo, { backgroundColor: colors.branco, borderColor: colors.verdeFolha }]}>
+            <Text style={[styles.restaurantLabel, { color: colors.verdeFolha }]}>🏪 Restaurante:</Text>
+            <Text style={[styles.restaurantName, { color: colors.marromFeijao }]}>{restauranteNome}</Text>
+          </View>
+        )}
 
         {carrinho.length === 0 ? (
           <View style={styles.emptyCart}>
@@ -149,76 +299,80 @@ const Carrinho = () => {
           <>
             {/* Lista de Itens */}
             <View style={styles.itemsContainer}>
-              {carrinho.map((item) => (
-                <View key={item.id} style={[styles.itemCard, { backgroundColor: colors.branco, borderColor: colors.marromFeijao, borderWidth: 1.5 }]}> 
-                  <Image source={item.prato.imagem} style={styles.itemImage} />
-                  
-                  <View style={styles.itemInfo}>
-                    <Text style={[styles.itemName, { color: colors.verdeFolha }]}>{item.prato.nome}</Text>
-                    <Text style={[styles.itemRestaurant, { color: colors.marromFeijao }]}>{item.empresa}</Text>
-                    <Text style={[styles.itemPrice, { color: colors.amareloOuro }]}>{item.prato.valor}</Text>
+              {carrinho.map((item) => {
+                // Determinar imagem do item
+                const itemImage = item.imagemUrl 
+                  ? { uri: item.imagemUrl } 
+                  : require('../assets/pratos/prato1.png'); // Imagem padrão
+
+                return (
+                  <View key={item.cartId} style={[styles.itemCard, { backgroundColor: colors.branco, borderColor: colors.marromFeijao, borderWidth: 1.5 }]}> 
+                    <Image source={itemImage} style={styles.itemImage} />
                     
-                    {/* Ingredientes Removidos */}
-                    {item.ingredientesRemovidos.length > 0 && (
-                      <View style={styles.ingredientsContainer}>
-                        <Text style={[styles.ingredientsLabel, { color: colors.vermelhoCambuci }]}>Removidos:</Text>
-                        <View style={styles.ingredientsList}>
-                          {item.ingredientesRemovidos.map((ing, index) => (
-                            <Text key={index} style={[styles.ingredientRemoved, { color: colors.vermelhoCambuci }]}>• {ing}</Text>
-                          ))}
+                    <View style={styles.itemInfo}>
+                      <Text style={[styles.itemName, { color: colors.verdeFolha }]}>{item.nome}</Text>
+                      <Text style={[styles.itemRestaurant, { color: colors.marromFeijao }]}>{item.restauranteNome}</Text>
+                      <Text style={[styles.itemPrice, { color: colors.amareloOuro }]}>R$ {item.preco.toFixed(2).replace('.', ',')}</Text>
+                      
+                      {/* Descrição do item */}
+                      {item.descricao && (
+                        <Text style={[styles.itemDescription, { color: colors.preto }]}>{item.descricao}</Text>
+                      )}
+                      
+                      {/* Ingredientes Removidos */}
+                      {item.ingredientesRemovidos && (
+                        <View style={styles.ingredientsContainer}>
+                          <Text style={[styles.ingredientsLabel, { color: colors.vermelhoCambuci }]}>Removidos:</Text>
+                          <Text style={[styles.ingredientRemoved, { color: colors.vermelhoCambuci }]}>• {item.ingredientesRemovidos}</Text>
                         </View>
-                      </View>
-                    )}
+                      )}
 
-                    {/* Ingredientes Adicionados */}
-                    {item.ingredientesAdicionados.length > 0 && (
-                      <View style={styles.ingredientsContainer}>
-                        <Text style={[styles.ingredientsLabel, { color: colors.verdeFolha }]}>Adicionados:</Text>
-                        <View style={styles.ingredientsList}>
-                          {item.ingredientesAdicionados.map((ing, index) => (
-                            <Text key={index} style={[styles.ingredientAdded, { color: colors.verdeFolha }]}>• {ing}</Text>
-                          ))}
+                      {/* Ingredientes Adicionados */}
+                      {item.ingredientesAdicionados && (
+                        <View style={styles.ingredientsContainer}>
+                          <Text style={[styles.ingredientsLabel, { color: colors.verdeFolha }]}>Adicionados:</Text>
+                          <Text style={[styles.ingredientAdded, { color: colors.verdeFolha }]}>• {item.ingredientesAdicionados}</Text>
                         </View>
-                      </View>
-                    )}
+                      )}
 
-                    {/* Observações */}
-                    {item.observacoes && (
-                      <View style={styles.observationsContainer}>
-                        <Text style={[styles.observationsLabel, { color: colors.azulRio }]}>Observações:</Text>
-                        <Text style={[styles.observationsText, { color: colors.azulRio }]}>{item.observacoes}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.itemActions}>
-                    {/* Controle de Quantidade */}
-                    <View style={styles.quantityContainer}>
-                      <TouchableOpacity 
-                        onPress={() => atualizarQuantidade(item.id, item.quantidade - 1)}
-                        style={[styles.quantityButton, { backgroundColor: colors.marromFeijao }]}
-                      >
-                        <Text style={[styles.quantityButtonText, { color: colors.branco }]}>-</Text>
-                      </TouchableOpacity>
-                      <Text style={[styles.quantityText, { color: colors.marromFeijao }]}>{item.quantidade}</Text>
-                      <TouchableOpacity 
-                        onPress={() => atualizarQuantidade(item.id, item.quantidade + 1)}
-                        style={[styles.quantityButton, { backgroundColor: colors.verdeFolha }]}
-                      >
-                        <Text style={[styles.quantityButtonText, { color: colors.branco }]}>+</Text>
-                      </TouchableOpacity>
+                      {/* Observações */}
+                      {item.observacoes && (
+                        <View style={styles.observationsContainer}>
+                          <Text style={[styles.observationsLabel, { color: colors.azulRio }]}>Observações:</Text>
+                          <Text style={[styles.observationsText, { color: colors.azulRio }]}>{item.observacoes}</Text>
+                        </View>
+                      )}
                     </View>
 
-                    {/* Botão Remover */}
-                    <TouchableOpacity 
-                      onPress={() => removerItem(item.id)}
-                      style={[styles.removeButton, { backgroundColor: colors.vermelhoCambuci }]}
-                    >
-                      <Text style={[styles.removeButtonText, { color: colors.branco }]}>🗑️</Text>
-                    </TouchableOpacity>
+                    <View style={styles.itemActions}>
+                      {/* Controle de Quantidade */}
+                      <View style={styles.quantityContainer}>
+                        <TouchableOpacity 
+                          onPress={() => atualizarQuantidade(item.cartId, item.quantidade - 1)}
+                          style={[styles.quantityButton, { backgroundColor: colors.marromFeijao }]}
+                        >
+                          <Text style={[styles.quantityButtonText, { color: colors.branco }]}>-</Text>
+                        </TouchableOpacity>
+                        <Text style={[styles.quantityText, { color: colors.marromFeijao }]}>{item.quantidade}</Text>
+                        <TouchableOpacity 
+                          onPress={() => atualizarQuantidade(item.cartId, item.quantidade + 1)}
+                          style={[styles.quantityButton, { backgroundColor: colors.verdeFolha }]}
+                        >
+                          <Text style={[styles.quantityButtonText, { color: colors.branco }]}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Botão Remover */}
+                      <TouchableOpacity 
+                        onPress={() => removerItem(item.cartId, item.nome)}
+                        style={[styles.removeButton, { backgroundColor: colors.vermelhoCambuci }]}
+                      >
+                        <Text style={[styles.removeButtonText, { color: colors.branco }]}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
 
             {/* Resumo do Pedido */}
@@ -232,13 +386,74 @@ const Carrinho = () => {
                 <Text style={[styles.summaryLabel, { color: colors.marromFeijao }]}>Total:</Text>
                 <Text style={[styles.summaryTotal, { color: colors.amareloOuro }]}>R$ {calcularTotal().toFixed(2).replace('.', ',')}</Text>
               </View>
-              <TouchableOpacity onPress={finalizarPedido} style={[styles.finalizarButton, { backgroundColor: colors.verdeFolha }]}> 
-                <Text style={[styles.finalizarButtonText, { color: colors.branco }]}>Finalizar Pedido</Text>
+              <TouchableOpacity 
+                onPress={() => {
+                  console.log('🔘 Botão Finalizar Pedido clicado!');
+                  finalizarPedido();
+                }} 
+                style={[
+                  styles.finalizarButton, 
+                  { 
+                    backgroundColor: isSubmittingOrder ? colors.marromFeijao : colors.verdeFolha,
+                    opacity: isSubmittingOrder ? 0.7 : 1
+                  }
+                ]}
+                disabled={isSubmittingOrder}
+              > 
+                {isSubmittingOrder ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={colors.branco} style={{ marginRight: 8 }} />
+                    <Text style={[styles.finalizarButtonText, { color: colors.branco }]}>Enviando Pedido...</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.finalizarButtonText, { color: colors.branco }]}>Finalizar Pedido</Text>
+                )}
               </TouchableOpacity>
             </View>
           </>
         )}
       </ScrollView>
+
+      {/* Modal de Confirmação */}
+      {showConfirmModal && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.branco, borderColor: colors.marromFeijao }]}>
+            <Text style={[styles.modalTitle, { color: colors.verdeFolha }]}>Finalizar Pedido</Text>
+            
+            <View style={styles.modalBody}>
+              <Text style={[styles.modalText, { color: colors.marromFeijao }]}>
+                <Text style={{ fontWeight: 'bold' }}>Restaurante:</Text> {restauranteNome}
+              </Text>
+              <Text style={[styles.modalText, { color: colors.marromFeijao }]}>
+                <Text style={{ fontWeight: 'bold' }}>Itens:</Text> {carrinho.length}
+              </Text>
+              <Text style={[styles.modalText, { color: colors.marromFeijao }]}>
+                <Text style={{ fontWeight: 'bold' }}>Total:</Text> R$ {calcularTotal().toFixed(2).replace('.', ',')}
+              </Text>
+              
+              <Text style={[styles.modalQuestion, { color: colors.verdeFolha }]}>
+                Deseja finalizar o pedido?
+              </Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                onPress={cancelarPedido}
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.marromFeijao }]}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.branco }]}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                onPress={confirmarPedido}
+                style={[styles.modalButton, styles.confirmButton, { backgroundColor: colors.verdeFolha }]}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.branco }]}>Finalizar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -337,6 +552,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 8,
+  },
+  itemDescription: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  restaurantInfo: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  restaurantLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  restaurantName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'right',
   },
   ingredientsContainer: {
     marginBottom: 4,
@@ -455,6 +696,67 @@ const styles = StyleSheet.create({
   finalizarButtonText: {
     color: '#18181b',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  // Estilos do Modal de Confirmação
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    borderWidth: 2,
+    maxWidth: 400,
+    width: '90%',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalBody: {
+    marginBottom: 24,
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  modalQuestion: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    marginRight: 6,
+  },
+  confirmButton: {
+    marginLeft: 6,
+  },
+  modalButtonText: {
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

@@ -71,7 +71,10 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
       (async () => {
         try {
           const me = await getSessao();
-          if (me && me.email) setSession(me);
+          if (me && me.email) {
+            // Marcar que está usando cookies (Spring Security)
+            setSession({ ...me, useCookies: true });
+          }
         } catch (_) {
           // sessão não encontrada, mantém null
         }
@@ -272,6 +275,12 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 									<Text style={[getBtnProps('/perfilUsuario', true).textStyle]}>Meu Perfil</Text>
 								</TouchableOpacity>
 								<TouchableOpacity
+									onPress={() => { setUserMenuOpen(false); router.push('/pedidos'); }}
+									{...getBtnProps('/pedidos', true)}
+								>
+									<Text style={[getBtnProps('/pedidos', true).textStyle]}>Meus Pedidos</Text>
+								</TouchableOpacity>
+								<TouchableOpacity
 									onPress={handleLogout}
 									{...getBtnProps('/logout', true)}
 								>
@@ -363,6 +372,9 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 					<>
 						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/perfilUsuario'); }} style={mobileStyles.mobileMenuItem}>
 							<Text style={mobileStyles.mobileMenuText}>Meu Perfil</Text>
+						</TouchableOpacity>
+						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/pedidos'); }} style={mobileStyles.mobileMenuItem}>
+							<Text style={mobileStyles.mobileMenuText}>Meus Pedidos</Text>
 						</TouchableOpacity>
 						<TouchableOpacity onPress={() => { setMenuOpen(false); handleLogout(); }} style={mobileStyles.mobileMenuItem}>
 							<Text style={mobileStyles.mobileMenuText}>Sair</Text>

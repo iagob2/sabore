@@ -33,7 +33,7 @@ const Login = () => {
     try {
       await loginCliente({ email, senha });
       // Marca sessão localmente (o Header também buscará /clientes/me)
-      setSession({ email });
+      setSession({ email, useCookies: true });
       router.push('/');
     } catch (e: any) {
       setErro(e?.message || 'Falha no login.');

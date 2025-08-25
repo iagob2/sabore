@@ -1,6 +1,6 @@
 
-import React, { useRef, useState } from 'react';
-import { View, ScrollView, Image, Text, Dimensions, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, ScrollView, Image, Text, Dimensions, TouchableOpacity, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import Header from '../components/Header';
 import Input from '../components/Input';
 import HorizontalCardCarousel from '../components/HorizontalCardCarousel';
@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { colors } from '../style/colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { listarRestaurantes, RestauranteResponse } from '../api/restaurante';
 
 // Removido o banner estático em favor do carrossel de ofertas
 
@@ -33,6 +34,96 @@ const Index = () => {
   const [useLocationFilter, setUseLocationFilter] = useState(false);
   const [userLocation, setUserLocation] = useState<null | { latitude: number; longitude: number }>(null);
   const [radiusKm, setRadiusKm] = useState(10);
+  
+  // Estados para dados do backend
+  const [restaurantes, setRestaurantes] = useState<RestauranteResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Função para carregar restaurantes do backend
+  const carregarRestaurantes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const dados = await listarRestaurantes();
+      console.log('Restaurantes carregados da API:', dados);
+      
+      // Log detalhado das URLs de imagem para debug
+      dados.forEach((rest, index) => {
+        const logoUrl = rest.logoUrl?.trim();
+        const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
+        
+        console.log(`🏪 Restaurante ${index + 1} (${rest.nome}):`, {
+          id: rest.id,
+          logoUrl: rest.logoUrl,
+          logoUrlTrimmed: logoUrl,
+          temLogo: !!rest.logoUrl,
+          temLogoValida: temLogoValida,
+          bannerUrl: rest.bannerUrl,
+          cardapioUrl: rest.cardapioUrl
+        });
+      });
+      
+      setRestaurantes(dados);
+    } catch (err) {
+      console.error('Erro ao carregar restaurantes:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar restaurantes');
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os restaurantes. Usando dados locais.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar dados quando o componente montar
+  useEffect(() => {
+    carregarRestaurantes();
+  }, []);
+
+  // Array de imagens padrão para variar entre restaurantes
+  const imagensPadrao = [
+    require('../assets/restaurante1.png'),
+    require('../assets/restaurante2.png'),
+    require('../assets/rest1.png'),
+    require('../assets/rest2.png')
+  ];
+
+  // Função para adaptar dados da API para o formato dos cards
+  const adaptarRestauranteParaCard = (restaurante: RestauranteResponse, index: number = 0) => {
+    // Verificar se a URL da logo é válida
+    const logoUrl = restaurante.logoUrl?.trim();
+    const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
+    
+    // Escolher imagem padrão baseada no ID do restaurante para consistência
+    const imagemPadrao = imagensPadrao[restaurante.id % imagensPadrao.length];
+    
+    console.log(`🖼️ Imagem para ${restaurante.nome}:`, {
+      restauranteId: restaurante.id,
+      logoUrl,
+      temLogoValida,
+      imagemPadraoIndex: restaurante.id % imagensPadrao.length,
+      usandoImagemPadrao: !temLogoValida
+    });
+    
+    return {
+      id: restaurante.id.toString(),
+      imageUrl: temLogoValida ? { uri: logoUrl } : imagemPadrao,
+      name: restaurante.nome,
+      rating: 4.5, // Rating padrão - você pode implementar um sistema de avaliações depois
+      subtitle: restaurante.descricao || 'Deliciosos pratos esperando por você',
+      // Coordenadas padrão de São Paulo se não tiver no banco
+      latitude: -23.5505,
+      longitude: -46.6333,
+      // Adicionar dados originais para debug
+      _debug: {
+        logoUrl: restaurante.logoUrl,
+        temLogoValida,
+        imagemPadraoUsada: !temLogoValida ? `imagem${(restaurante.id % imagensPadrao.length) + 1}` : null
+      }
+    };
+  };
 
   // Dados dos restaurantes
   const cardData = [
@@ -66,15 +157,29 @@ const Index = () => {
   ];
 
   const handleCardClick = (id: string) => {
-    const card = cardData.find(c => c.id === id);
-    toast({
-      title: "Prato Selecionado",
-      description: `Você escolheu: ${card?.name}`,
-    });
+    const card = todosOsCards.find(c => c.id === id);
+    if (card) {
+      // Navegar para o perfil da empresa
+      router.push({
+        pathname: '/perfilEmpresa',
+        params: { 
+          id: id,
+          // Se temos dados da API, passamos eles
+          ...(restaurantes.length > 0 && { 
+            restauranteData: JSON.stringify(restaurantes.find(r => r.id.toString() === id))
+          })
+        }
+      });
+    } else {
+      toast({
+        title: "Restaurante Selecionado",
+        description: `Você escolheu: ${card?.name}`,
+      });
+    }
   };
 
   // Ofertas dos restaurantes para o carrossel do topo
-  const offers = [
+  const ofertasPadrao = [
     {
       id: 'of1',
       image: require('../assets/restaurante1.png'),
@@ -104,6 +209,25 @@ const Index = () => {
       description: 'Para pedidos acima de R$ 50,00.'
     }
   ];
+
+  // Criar ofertas dinâmicas baseadas nos restaurantes da API
+  const ofertasDinamicas = restaurantes.slice(0, 4).map((restaurante, index) => {
+    const logoUrl = restaurante.logoUrl?.trim();
+    const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
+    
+    // Usar a mesma lógica de imagem padrão variada
+    const imagemPadrao = imagensPadrao[restaurante.id % imagensPadrao.length];
+    
+    return {
+      id: `api-${restaurante.id}`,
+      image: temLogoValida ? { uri: logoUrl } : imagemPadrao,
+      title: restaurante.nome,
+      subtitle: 'Ofertas especiais disponíveis',
+      description: restaurante.descricao || 'Venha experimentar nossos pratos deliciosos!'
+    };
+  });
+
+  const offers = ofertasDinamicas.length > 0 ? ofertasDinamicas : ofertasPadrao;
 
   function abrirCarrinho() {
     console.log('Carrinho atual:', carrinho);
@@ -188,7 +312,15 @@ const Index = () => {
     setUserLocation(null);
   };
 
-  const filteredCards = cardData.filter((card: any) => {
+  // Combinar dados da API com dados locais para fallback
+  const todosOsCards = [
+    // Dados da API adaptados
+    ...restaurantes.map((restaurante, index) => adaptarRestauranteParaCard(restaurante, index)),
+    // Dados locais como fallback caso a API não funcione
+    ...(restaurantes.length === 0 ? cardData : [])
+  ];
+
+  const filteredCards = todosOsCards.filter((card: any) => {
     const matchesText = `${card.name} ${card.subtitle ?? ''}`
       .toLowerCase()
       .includes(searchQuery.trim().toLowerCase());
@@ -425,7 +557,32 @@ const Index = () => {
         {/* Resultados */}
         <View style={indexStyles.carouselSection}>
           <Text style={indexStyles.carouselTitle}>Resultados</Text>
-          {filteredCards.length > 0 ? (
+          {loading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <ActivityIndicator size="large" color={colors.marromFeijao} />
+              <Text style={{ color: colors.preto, opacity: 0.8, marginTop: 8 }}>
+                Carregando restaurantes...
+              </Text>
+            </View>
+          ) : error ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <Text style={{ color: '#E11D48', textAlign: 'center' }}>
+                {error}
+              </Text>
+              <TouchableOpacity
+                onPress={carregarRestaurantes}
+                style={{
+                  backgroundColor: colors.marromFeijao,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  marginTop: 8
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : filteredCards.length > 0 ? (
             <HorizontalCardCarousel
               cards={filteredCards as any}
               onCardClick={handleCardClick}
@@ -435,13 +592,21 @@ const Index = () => {
           )}
         </View>
 
-        {/* Carrossel de Cards */}
+        {/* Carrossel de Cards - Todos os Restaurantes */}
         <View style={indexStyles.carouselSection}>
-          <Text style={indexStyles.carouselTitle}>Melhores Avaliados</Text>
-          <HorizontalCardCarousel 
-            cards={cardData as any}
-            onCardClick={handleCardClick}
-          />
+          <Text style={indexStyles.carouselTitle}>
+            {restaurantes.length > 0 ? 'Nossos Restaurantes' : 'Melhores Avaliados'}
+          </Text>
+          {loading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <ActivityIndicator size="large" color={colors.marromFeijao} />
+            </View>
+          ) : (
+            <HorizontalCardCarousel 
+              cards={todosOsCards as any}
+              onCardClick={handleCardClick}
+            />
+          )}
         </View>
       
         {/* Seção Institucional */}

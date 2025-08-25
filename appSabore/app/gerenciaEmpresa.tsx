@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, Dimensions, Alert, TouchableOpacity, TextInput, Modal, Switch, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, Platform, Dimensions, Alert, TouchableOpacity, TextInput, Modal, Switch, Image, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { indexStyles } from '../style/indexStyles';
@@ -8,9 +8,17 @@ import Header from '../components/Header';
 import ActionButton from '../components/ActionButton';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { buscarRestaurante, atualizarRestaurante, uploadRestauranteArquivo, RestauranteResponse } from '../api/restaurante';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isLargeScreen = SCREEN_WIDTH > 900;
+
+// Interface estendida para incluir campos temporários de edição
+interface RestauranteEditData extends Partial<RestauranteResponse> {
+  logotipo?: any;
+  banner?: any;
+  cardapio?: any;
+}
 
 const gerenciaEmpresaStyles = StyleSheet.create({
   container: {
@@ -261,79 +269,112 @@ const styles = StyleSheet.create({
   },
 });
 
-// Dados mockados da empresa (em um app real viriam de uma API)
-const empresaData = {
-  id: '1',
-  nome: 'Sushi House',
-  status: 'aberto',
-  telefone: '(13) 3591-5817',
-  endereco: 'Rua Japão, 123 - Centro, Santos/SP',
-  email: 'contato@sushihouse.com.br',
-  horario: 'Sextas e sábados: 16h às 23h30\nOutros dias: 16h às 22h30',
-  lotacao: '6 mesas simultâneas',
-  pratosCadastrados: 45,
-  pedidosHoje: 23,
-  avaliacaoMedia: 4.7,
-  faturamentoMes: 'R$ 12.450,00',
-  descricao: 'Restaurante especializado em culinária japonesa autêntica, oferecendo sushi, sashimi e pratos tradicionais com ingredientes frescos e de qualidade.',
-  site: 'https://www.sushihouse.com.br',
-  facebook: 'https://facebook.com/sushihouse',
-  instagram: 'https://instagram.com/sushihouse',
-  whatsapp: 'https://wa.me/551335915817',
-  logotipo: null,
-  banner: null,
-  cardapio: null,
-  rua: '',
-  bairro: '',
-  cidade: '',
-  estado: '',
-  cep: '',
-  cnpj: '00.000.000/0000-00',
-  aceitaComunicacao: false,
-  aceitaMarketing: false,
-  aceitaProtecaoDados: true,
-};
-
 const GerenciaEmpresa = () => {
-  const { id } = useLocalSearchParams();
-  const [empresa, setEmpresa] = useState(empresaData);
+  const { id, restauranteData } = useLocalSearchParams();
+  const [empresa, setEmpresa] = useState<RestauranteResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Estados para estatísticas (mockados por enquanto, podem vir de uma API específica depois)
+  const [estatisticas, setEstatisticas] = useState({
+    pratosCadastrados: 0,
+    pedidosHoje: 0,
+    avaliacaoMedia: 4.5,
+    faturamentoMes: 'R$ 0,00',
+    status: 'aberto'
+  });
 
   // Adicionar estados para modal, campo em edição e dados temporários
   const [modalVisible, setModalVisible] = useState(false);
   const [editingField, setEditingField] = useState('');
-  const [editData, setEditData] = useState<Partial<typeof empresaData>>({});
+  const [editData, setEditData] = useState<RestauranteEditData>({});
 
-  const handleEditarDados = (field) => {
+  // Função para carregar dados do restaurante
+  const carregarDadosRestaurante = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let restaurante: RestauranteResponse;
+
+      // Primeiro tenta usar os dados passados por parâmetro
+      if (restauranteData) {
+        try {
+          restaurante = JSON.parse(restauranteData as string);
+          console.log('📊 Usando dados do login:', restaurante);
+        } catch (e) {
+          throw new Error('Dados inválidos recebidos do login');
+        }
+      }
+      // Se não tiver dados do parâmetro, busca pela API
+      else if (id) {
+        console.log('🔍 Buscando restaurante pela API, ID:', id);
+        restaurante = await buscarRestaurante(Number(id));
+      } else {
+        throw new Error('ID do restaurante não fornecido');
+      }
+
+      setEmpresa(restaurante);
+
+      // Atualizar estatísticas com dados mockados (pode ser uma API separada depois)
+      setEstatisticas({
+        pratosCadastrados: Math.floor(Math.random() * 50) + 10,
+        pedidosHoje: Math.floor(Math.random() * 30),
+        avaliacaoMedia: 4.2 + Math.random() * 0.8,
+        faturamentoMes: `R$ ${(Math.random() * 20000 + 5000).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        status: 'aberto'
+      });
+
+    } catch (err) {
+      console.error('❌ Erro ao carregar dados do restaurante:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar dados quando o componente montar
+  useEffect(() => {
+    carregarDadosRestaurante();
+  }, [id, restauranteData]);
+
+  const handleEditarDados = (field: string) => {
+    if (!empresa) return;
     setEditingField(field);
     setEditData({ ...empresa });
     setModalVisible(true);
   };
 
   const handleEditarHorario = () => {
+    if (!empresa) return;
     setEditingField('horario');
     setEditData({ ...empresa, horario: empresa.horario });
     setModalVisible(true);
   };
 
   const handleEditarDescricao = () => {
+    if (!empresa) return;
     setEditingField('descricao');
     setEditData({ ...empresa, descricao: empresa.descricao });
     setModalVisible(true);
   };
 
   const handleEditarRedesSociais = () => {
+    if (!empresa) return;
     setEditingField('redesSociais');
     setEditData({ ...empresa });
     setModalVisible(true);
   };
 
   const handleEditarImagens = () => {
+    if (!empresa) return;
     setEditingField('imagens');
     setEditData({ ...empresa });
     setModalVisible(true);
   };
 
   const handleEditarAutorizacoes = () => {
+    if (!empresa) return;
     setEditingField('autorizacoes');
     setEditData({
       aceitaComunicacao: empresa.aceitaComunicacao,
@@ -374,12 +415,77 @@ const GerenciaEmpresa = () => {
     }
   };
 
-  const handleSaveChanges = () => {
-    setEmpresa({ ...empresa, ...editData });
-    setModalVisible(false);
-    setEditingField('');
-    setEditData({});
-    Alert.alert('Sucesso', 'Alterações salvas com sucesso!');
+  const handleSaveChanges = async () => {
+    if (!empresa) return;
+    
+    try {
+      // Preparar dados para upload se houver imagens
+      let logoUrl = editData.logoUrl;
+      let bannerUrl = editData.bannerUrl;
+      let cardapioUrl = editData.cardapioUrl;
+
+      // Upload de nova logo se selecionada
+      if (editData.logotipo && editData.logotipo.uri) {
+        try {
+          logoUrl = await uploadRestauranteArquivo('logo', { 
+            uri: editData.logotipo.uri, 
+            name: editData.logotipo.fileName || 'logo.jpg' 
+          });
+        } catch (e) {
+          console.warn('Erro no upload da logo:', e);
+        }
+      }
+
+      // Upload de novo banner se selecionado
+      if (editData.banner && editData.banner.uri) {
+        try {
+          bannerUrl = await uploadRestauranteArquivo('banner', { 
+            uri: editData.banner.uri, 
+            name: editData.banner.fileName || 'banner.jpg' 
+          });
+        } catch (e) {
+          console.warn('Erro no upload do banner:', e);
+        }
+      }
+
+      // Upload de novo cardápio se selecionado
+      if (editData.cardapio && editData.cardapio.uri) {
+        try {
+          cardapioUrl = await uploadRestauranteArquivo('cardapio', { 
+            uri: editData.cardapio.uri, 
+            name: editData.cardapio.name || 'cardapio.pdf' 
+          });
+        } catch (e) {
+          console.warn('Erro no upload do cardápio:', e);
+        }
+      }
+
+      // Preparar dados para atualização
+      const dadosAtualizacao = {
+        ...editData,
+        logoUrl,
+        bannerUrl,
+        cardapioUrl,
+        // Remover dados de arquivo local
+        logotipo: undefined,
+        banner: undefined,
+        cardapio: undefined
+      };
+
+      // Atualizar no servidor
+      const empresaAtualizada = await atualizarRestaurante(empresa.id, dadosAtualizacao);
+      
+      // Atualizar estado local
+      setEmpresa(empresaAtualizada);
+      setModalVisible(false);
+      setEditingField('');
+      setEditData({});
+      
+      Alert.alert('Sucesso', 'Alterações salvas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar alterações:', error);
+      Alert.alert('Erro', 'Não foi possível salvar as alterações. Tente novamente.');
+    }
   };
 
   const handleGerenciarCardapio = () => {
@@ -399,8 +505,9 @@ const GerenciaEmpresa = () => {
   };
 
   const handleAlterarStatus = () => {
-    const novoStatus = empresa.status === 'aberto' ? 'fechado' : 'aberto';
-    setEmpresa({ ...empresa, status: novoStatus });
+    if (!empresa) return;
+    const novoStatus = estatisticas.status === 'aberto' ? 'fechado' : 'aberto';
+    setEstatisticas({ ...estatisticas, status: novoStatus });
     Alert.alert('Status Alterado', `Estabelecimento agora está ${novoStatus}`);
   };
 
@@ -442,8 +549,8 @@ const GerenciaEmpresa = () => {
               <Text style={gerenciaEmpresaStyles.inputLabel}>Lotação</Text>
               <TextInput
                 style={gerenciaEmpresaStyles.input}
-                value={editData.lotacao || ''}
-                onChangeText={(text) => setEditData({ ...editData, lotacao: text })}
+                value={editData.lotacao?.toString() || ''}
+                onChangeText={(text) => setEditData({ ...editData, lotacao: parseInt(text) || undefined })}
                 placeholder="Ex: 6 mesas simultâneas"
               />
             </View>
@@ -677,6 +784,49 @@ const GerenciaEmpresa = () => {
     }
   };
 
+  // Renderizar loading
+  if (loading) {
+    return (
+      <View style={gerenciaEmpresaStyles.container}>
+        <Header logo="Gerenciamento" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <ActivityIndicator size="large" color={colors.verdeFolha} />
+          <Text style={{ color: colors.preto, fontSize: 16, marginTop: 16, textAlign: 'center' }}>
+            Carregando dados do restaurante...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Renderizar erro
+  if (error || !empresa) {
+    return (
+      <View style={gerenciaEmpresaStyles.container}>
+        <Header logo="Gerenciamento" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: '#E11D48', fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 16 }}>
+            Erro ao carregar dados
+          </Text>
+          <Text style={{ color: colors.preto, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+            {error || 'Não foi possível carregar os dados do restaurante'}
+          </Text>
+          <TouchableOpacity
+            onPress={carregarDadosRestaurante}
+            style={{
+              backgroundColor: colors.verdeFolha,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              borderRadius: 8
+            }}
+          >
+            <Text style={{ color: colors.branco, fontWeight: 'bold' }}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={gerenciaEmpresaStyles.container}>
       <Header logo="Gerenciamento" />
@@ -687,10 +837,10 @@ const GerenciaEmpresa = () => {
           <Text style={gerenciaEmpresaStyles.empresaSubtitle}>Painel de Controle</Text>
           <View style={gerenciaEmpresaStyles.statusIndicator}>
             <Text style={{ fontSize: 16 }}>
-              {empresa.status === 'aberto' ? '🟢' : '🔴'}
+              {estatisticas.status === 'aberto' ? '🟢' : '🔴'}
             </Text>
             <Text style={gerenciaEmpresaStyles.statusText}>
-              {empresa.status === 'aberto' ? 'Aberto' : 'Fechado'}
+              {estatisticas.status === 'aberto' ? 'Aberto' : 'Fechado'}
             </Text>
           </View>
         </View>
@@ -703,15 +853,15 @@ const GerenciaEmpresa = () => {
           </Text>
           <View style={gerenciaEmpresaStyles.statsContainer}>
             <View style={gerenciaEmpresaStyles.statItem}>
-              <Text style={gerenciaEmpresaStyles.statNumber}>{empresa.pedidosHoje}</Text>
+              <Text style={gerenciaEmpresaStyles.statNumber}>{estatisticas.pedidosHoje}</Text>
               <Text style={gerenciaEmpresaStyles.statLabel}>Pedidos Hoje</Text>
             </View>
             <View style={gerenciaEmpresaStyles.statItem}>
-              <Text style={gerenciaEmpresaStyles.statNumber}>{empresa.pratosCadastrados}</Text>
+              <Text style={gerenciaEmpresaStyles.statNumber}>{estatisticas.pratosCadastrados}</Text>
               <Text style={gerenciaEmpresaStyles.statLabel}>Pratos Cadastrados</Text>
             </View>
             <View style={gerenciaEmpresaStyles.statItem}>
-              <Text style={gerenciaEmpresaStyles.statNumber}>{empresa.avaliacaoMedia}</Text>
+              <Text style={gerenciaEmpresaStyles.statNumber}>{estatisticas.avaliacaoMedia.toFixed(1)}</Text>
               <Text style={gerenciaEmpresaStyles.statLabel}>Avaliação Média</Text>
             </View>
           </View>
@@ -727,7 +877,7 @@ const GerenciaEmpresa = () => {
             <View style={gerenciaEmpresaStyles.gridItem}>
               <ActionButton
                 text="Alterar Status"
-                icon={empresa.status === 'aberto' ? '🔴' : '🟢'}
+                icon={estatisticas.status === 'aberto' ? '🔴' : '🟢'}
                 onPress={handleAlterarStatus}
                 variant="primary"
               />
@@ -770,27 +920,27 @@ const GerenciaEmpresa = () => {
             <View style={gerenciaEmpresaStyles.gridItem}>
               <View style={gerenciaEmpresaStyles.infoCard}>
                 <Text style={gerenciaEmpresaStyles.infoLabel}>CNPJ</Text>
-                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.cnpj}</Text>
+                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.cnpj || 'Não informado'}</Text>
               </View>
             </View>
             {/* Card de Logo e Banner */}
             <View style={gerenciaEmpresaStyles.gridItem}>
               <View style={gerenciaEmpresaStyles.infoCard}>
                 <Text style={gerenciaEmpresaStyles.infoLabel}>Logo</Text>
-                {empresa.logotipo ? (
+                {empresa.logoUrl ? (
                   <View style={{ alignItems: 'center', marginBottom: 8 }}>
                     <View style={{ width: 60, height: 60, borderRadius: 30, overflow: 'hidden', borderWidth: 2, borderColor: colors.verdeFolha }}>
-                      <Image source={{ uri: empresa.logotipo.uri || empresa.logotipo }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                      <Image source={{ uri: empresa.logoUrl }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
                     </View>
                   </View>
                 ) : (
                   <Text style={{ color: colors.marromFeijao, fontSize: 12, marginBottom: 8 }}>Nenhum logo cadastrado</Text>
                 )}
                 <Text style={gerenciaEmpresaStyles.infoLabel}>Banner</Text>
-                {empresa.banner ? (
+                {empresa.bannerUrl ? (
                   <View style={{ alignItems: 'center', marginBottom: 8 }}>
                     <View style={{ width: 120, height: 40, borderRadius: 8, overflow: 'hidden', borderWidth: 2, borderColor: colors.verdeFolha }}>
-                      <Image source={{ uri: empresa.banner.uri || empresa.banner }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                      <Image source={{ uri: empresa.bannerUrl }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
                     </View>
                   </View>
                 ) : (
@@ -804,7 +954,7 @@ const GerenciaEmpresa = () => {
             <View style={gerenciaEmpresaStyles.gridItem}>
               <View style={gerenciaEmpresaStyles.infoCard}>
                 <Text style={gerenciaEmpresaStyles.infoLabel}>Telefone</Text>
-                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.telefone}</Text>
+                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.telefone || 'Não informado'}</Text>
                 <TouchableOpacity style={gerenciaEmpresaStyles.editButton} onPress={() => handleEditarDados('dadosBasicos')}>
                   <Text style={gerenciaEmpresaStyles.editButtonText}>Editar</Text>
                 </TouchableOpacity>
@@ -813,7 +963,9 @@ const GerenciaEmpresa = () => {
             <View style={gerenciaEmpresaStyles.gridItem}>
               <View style={gerenciaEmpresaStyles.infoCard}>
                 <Text style={gerenciaEmpresaStyles.infoLabel}>Endereço</Text>
-                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.endereco}</Text>
+                <Text style={gerenciaEmpresaStyles.infoValue}>
+                  {[empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ') || 'Não informado'}
+                </Text>
                 <TouchableOpacity style={gerenciaEmpresaStyles.editButton} onPress={() => handleEditarDados('endereco')}>
                   <Text style={gerenciaEmpresaStyles.editButtonText}>Editar</Text>
                 </TouchableOpacity>
@@ -831,7 +983,7 @@ const GerenciaEmpresa = () => {
             <View style={gerenciaEmpresaStyles.gridItem}>
               <View style={gerenciaEmpresaStyles.infoCard}>
                 <Text style={gerenciaEmpresaStyles.infoLabel}>Lotação</Text>
-                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.lotacao}</Text>
+                <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.lotacao ? `${empresa.lotacao} pessoas` : 'Não informado'}</Text>
                 <TouchableOpacity style={gerenciaEmpresaStyles.editButton} onPress={() => handleEditarDados('dadosBasicos')}>
                   <Text style={gerenciaEmpresaStyles.editButtonText}>Editar</Text>
                 </TouchableOpacity>
@@ -847,7 +999,7 @@ const GerenciaEmpresa = () => {
             Horário de Funcionamento
           </Text>
           <View style={gerenciaEmpresaStyles.infoCard}>
-            <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.horario}</Text>
+            <Text style={gerenciaEmpresaStyles.infoValue}>{empresa.horario || 'Horário não informado'}</Text>
             <ActionButton
               text="Editar Horário"
               icon="✏️"
@@ -866,7 +1018,7 @@ const GerenciaEmpresa = () => {
           </Text>
           <View style={gerenciaEmpresaStyles.infoCard}>
             <Text style={[gerenciaEmpresaStyles.infoValue, { fontSize: 24, color: colors.verdeFolha }]}>
-              {empresa.faturamentoMes}
+              {estatisticas.faturamentoMes}
             </Text>
             <ActionButton
               text="Ver Detalhes"

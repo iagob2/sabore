@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
@@ -8,6 +8,9 @@ import Header from '../components/Header';
 import CardPrato from '../components/CardPrato';
 import StarRating from '../components/StarRating';
 import { colors } from '../style/colors';
+import { buscarRestaurante, RestauranteResponse, API_BASE_URL } from '../api/restaurante';
+import { buscarItensPorRestaurante, ItemRestauranteResponse } from '../api/itemRestaurante';
+import { toast } from '../hooks/use-toast';
 
 const perfilEmpresaStyles = StyleSheet.create({
   bannerContainer: {
@@ -495,15 +498,60 @@ const pratosCozinhaMae = {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isLargeScreen = SCREEN_WIDTH > 900;
 
+// Componente de imagem com fallback automático
+const ImageWithFallback = ({ source, fallbackSource, style, ...props }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Reset error state quando source mudar
+  useEffect(() => {
+    setHasError(false);
+    setIsLoading(true);
+  }, [source]);
+
+  const handleError = () => {
+    console.log('❌ Erro ao carregar imagem:', source);
+    setHasError(true);
+    setIsLoading(false);
+  };
+
+  const handleLoad = () => {
+    console.log('✅ Imagem carregada com sucesso:', source);
+    setIsLoading(false);
+  };
+
+  const finalSource = hasError ? fallbackSource : source;
+
+  return (
+    <Image
+      {...props}
+      source={finalSource}
+      style={style}
+      onError={handleError}
+      onLoad={handleLoad}
+    />
+  );
+};
+
 const PerfilEmpresa = () => {
-  const { id } = useLocalSearchParams();
+  const { id, restauranteData } = useLocalSearchParams();
   const router = useRouter();
-  const empresa = empresaData[id as string] || empresaData['1'];
   const { width: screenWidth } = useWindowDimensions();
   const isSmallScreen = screenWidth < 380;
   const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
   const isLargeScreenRuntime = screenWidth > 900;
   const socialIconSize = isSmallScreen ? 22 : isMediumScreen ? 24 : 28;
+  
+  // Estados para dados reais da API
+  const [empresa, setEmpresa] = useState<RestauranteResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Estados para itens/pratos do restaurante
+  const [itensRestaurante, setItensRestaurante] = useState<ItemRestauranteResponse[]>([]);
+  const [loadingItens, setLoadingItens] = useState(false);
+  
+  // Estados do modal de pratos
   const [copied, setCopied] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [pratoSelecionado, setPratoSelecionado] = useState(null);
@@ -516,6 +564,321 @@ const PerfilEmpresa = () => {
   const [avaliacaoUsuario, setAvaliacaoUsuario] = useState(0);
   const [observacaoUsuario, setObservacaoUsuario] = useState('');
   const [estrelasPressionadas, setEstrelasPressionadas] = useState(false);
+  const [modalCardapioVisible, setModalCardapioVisible] = useState(false);
+
+  // Função para adaptar item da API para formato do CardPrato
+  const adaptarItemParaCardPrato = (item: ItemRestauranteResponse) => {
+    console.log('🔄 Adaptando item:', item);
+    
+    // Array de imagens padrão para variar - mapeamento inteligente por nome
+    const imagensPadraoItem = [
+      require('../assets/pratos/prato1.png'),
+      require('../assets/pratos/prato2.png'),
+      require('../assets/pratos/prato3.png'),
+      require('../assets/pratos/feijoada.png'),
+      require('../assets/pratos/moqueca.png'),
+      require('../assets/pratos/pao-queijo.png'),
+      require('../assets/pratos/brigadeiro.png'),
+      require('../assets/pratos/acaraje.png')
+    ];
+    
+    // Mapeamento inteligente de pratos por nome
+    const getImagemEspecifica = (nomePrato: string) => {
+      const nome = nomePrato.toLowerCase();
+      if (nome.includes('acarajé') || nome.includes('acaraje')) {
+        return require('../assets/pratos/acaraje.png');
+      }
+      if (nome.includes('moqueca')) {
+        return require('../assets/pratos/moqueca.png');
+      }
+      if (nome.includes('feijoada')) {
+        return require('../assets/pratos/feijoada.png');
+      }
+      if (nome.includes('brigadeiro')) {
+        return require('../assets/pratos/brigadeiro.png');
+      }
+      if (nome.includes('pão de queijo') || nome.includes('pao de queijo')) {
+        return require('../assets/pratos/pao-queijo.png');
+      }
+      if (nome.includes('tempurá') || nome.includes('tempura')) {
+        return require('../assets/pratos/prato2.png'); // Tempurá pode usar prato2
+      }
+      if (nome.includes('vinagrete') || nome.includes('salada')) {
+        return require('../assets/pratos/salada.png');
+      }
+      // Fallback baseado no ID para outros pratos
+      return imagensPadraoItem[item.id % imagensPadraoItem.length];
+    };
+    
+    // Selecionar imagem específica baseada no nome do prato
+    const imagemEspecifica = getImagemEspecifica(item.nome || '');
+    let imageSource = imagemEspecifica;
+    
+    console.log('🎯 Imagem selecionada para', item.nome, ':', typeof imageSource);
+    if (item.imagemUrl && item.imagemUrl.trim() !== '') {
+      let urlCompleta = item.imagemUrl;
+      
+      console.log('🖼️ Processando imagem do item:', item.nome);
+      console.log('🖼️ URL original:', item.imagemUrl);
+      
+      // Se não é uma URL completa, construir com API_BASE_URL
+      if (!item.imagemUrl.startsWith('http://') && !item.imagemUrl.startsWith('https://')) {
+        urlCompleta = `${API_BASE_URL}${item.imagemUrl.startsWith('/') ? '' : '/'}${item.imagemUrl}`;
+        console.log('🔗 URL construída com API_BASE_URL:', urlCompleta);
+      }
+      // Forçar HTTP em vez de HTTPS para evitar problemas de certificado em desenvolvimento
+      else if (urlCompleta.startsWith('https://localhost') || urlCompleta.startsWith('https://127.0.0.1')) {
+        urlCompleta = urlCompleta.replace('https://', 'http://');
+        console.log('🔒 Convertendo HTTPS para HTTP:', urlCompleta);
+      }
+      
+      // Sempre tentar usar a imagem real primeiro
+      try {
+        // Validar se a URL parece válida
+        new URL(urlCompleta);
+        
+        // Verificar se não é uma URL obviamente de exemplo
+        const isExampleUrl = item.imagemUrl.includes('exemplo.com') || 
+                            item.imagemUrl.includes('placeholder.com') ||
+                            item.imagemUrl.includes('example.com');
+        
+        if (isExampleUrl) {
+          console.log('🚫 URL de exemplo detectada, mas vamos tentar carregar mesmo assim:', urlCompleta);
+          // Mesmo sendo exemplo, vamos tentar - se falhar, o ImageWithFallback cuida
+        }
+        
+        imageSource = { uri: urlCompleta };
+        console.log('✅ Usando URL da imagem:', urlCompleta);
+        
+      } catch (e) {
+        console.log('❌ URL da imagem inválida:', urlCompleta, 'Erro:', e);
+        console.log('🔄 Usando imagem padrão baseada no ID');
+      }
+    } else {
+      console.log('⚠️ Item sem imagemUrl, usando imagem padrão baseada no ID');
+    }
+    
+    // Usar descricao como ingredientes se disponível
+    const ingredientes = item.descricao ? item.descricao.split(',').map(i => i.trim()) : ['Ingredientes não informados'];
+    
+    // Formatação do preço para exibição
+    const valorFormatado = `R$ ${item.preco?.toFixed(2).replace('.', ',') || '0,00'}`;
+    
+    console.log('💰 Formatação do preço:', {
+      precoOriginal: item.preco,
+      valorFormatado: valorFormatado
+    });
+    
+    console.log('🥘 Formatação dos ingredientes:', {
+      descricaoOriginal: item.descricao,
+      ingredientesArray: ingredientes,
+      ingredientesString: ingredientes.join(', ')
+    });
+    
+    const adaptado = {
+      // Propriedades que o CardPrato espera (formato correto)
+      imagem: imageSource,
+      imagemFallback: imagemEspecifica, // Para fallback manual se necessário
+      nome: item.nome || 'Prato sem nome',
+      ingredientes: ingredientes.join(', '), // CardPrato espera string, não array
+      valor: valorFormatado,
+      avaliacao: 4.5,
+      
+      // Propriedades extras para compatibilidade com outros componentes
+      id: item.id.toString(),
+      name: item.nome || 'Prato sem nome',
+      price: item.preco || 0,
+      preco: item.preco || 0,
+      description: item.descricao || 'Delicioso prato preparado com carinho',
+      image: imageSource,
+      category: 'Prato Principal',
+      available: true,
+      ingredients: ingredientes, // Array para outros componentes
+      prepTime: 20,
+      rating: 4.5,
+      
+      _debug: {
+        originalItem: item,
+        hasImage: !!item.imagemUrl,
+        restauranteId: item.restaurante?.id,
+        finalImageSource: imageSource,
+        ingredientesFromDescricao: ingredientes,
+        valorFormatado: valorFormatado,
+        precoOriginal: item.preco
+      }
+    };
+    
+    console.log('✅ Item adaptado final:', {
+      nome: adaptado.nome,
+      valor: adaptado.valor,
+      ingredientes: adaptado.ingredientes,
+      imagemTipo: typeof adaptado.imagem,
+      imagemUri: adaptado.imagem?.uri || 'local',
+      imagemFallback: typeof adaptado.imagemFallback
+    });
+    
+    return adaptado;
+  };
+
+  // Função de teste com dados reais do JSON fornecido
+  const testarComDadosReais = () => {
+    const dadosExemplo = [
+      {"id":4,"nome":"Acarajé","descricao":"Feijão-fradinho, camarão, vatapá, pimenta","preco":18.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":5,"nome":"Cozinha da Mãe"}},
+      {"id":5,"nome":"Moqueca de Camarão","descricao":"Camarão, leite de coco, azeite de dendê","preco":42.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":5,"nome":"Cozinha da Mãe"}},
+      {"id":7,"nome":"Vinagrete","descricao":"Tomate, cebola, pimentão, vinagre","preco":16.0,"imagemUrl":"https://exemplo.com/sua-imagem.jpg","restaurante":{"id":4,"nome":"Brasil Brasileiro"}}
+    ];
+    
+    console.log('🧪 === TESTE COM DADOS REAIS DO JSON ===');
+    console.log('📋 Dados de exemplo:', dadosExemplo);
+    
+    // Filtrar apenas itens do restaurante atual
+    const itensFiltrados = dadosExemplo.filter(item => item.restaurante.id === empresa?.id);
+    console.log('🎯 Itens filtrados para restaurante', empresa?.id, ':', itensFiltrados);
+    
+    if (itensFiltrados.length > 0) {
+      console.log('✅ Testando adaptação com dados filtrados...');
+      setItensRestaurante(itensFiltrados as any);
+    } else {
+      console.log('⚠️ Nenhum item encontrado para este restaurante no teste');
+    }
+  };
+
+  // Função para carregar itens do restaurante
+  const carregarItensRestaurante = async (restauranteId: number) => {
+    try {
+      setLoadingItens(true);
+      console.log('🍽️ === CARREGANDO ITENS DO RESTAURANTE ===');
+      console.log('🆔 Restaurante ID:', restauranteId);
+      console.log('🔗 API_BASE_URL:', API_BASE_URL);
+      console.log('🌐 URL completa:', `${API_BASE_URL}/itens/restaurante/${restauranteId}`);
+      console.log('🔧 Controller público: /itens/restaurante/{restauranteId}');
+      console.log('🔧 Service: buscarItensPorRestaurante() -> findByRestauranteIdOrderByNomeAsc()');
+      
+      const itens = await buscarItensPorRestaurante(restauranteId);
+      console.log('✅ Resposta da API recebida!');
+      console.log('📊 Quantidade de itens:', itens?.length || 0);
+      console.log('📋 Dados completos dos itens:', itens);
+      
+      // Verificar se está vindo dados do endpoint correto
+      if (itens && itens.length > 0) {
+        const restaurantesUnicos = [...new Set(itens.map(item => item.restaurante?.id))];
+        console.log('🏪 Restaurantes únicos nos itens:', restaurantesUnicos);
+        console.log('🎯 Esperado restaurante ID:', restauranteId);
+        
+        if (restaurantesUnicos.length > 1) {
+          console.warn('⚠️ ATENÇÃO: Recebendo itens de múltiplos restaurantes! Verifique se está usando /itens/restaurante/{id}');
+        }
+      }
+      
+      if (itens && itens.length > 0) {
+        console.log('🔍 Primeiro item detalhado:', itens[0]);
+        itens.forEach((item, index) => {
+          console.log(`📝 Item ${index + 1}:`, {
+            id: item.id,
+            nome: item.nome,
+            preco: item.preco,
+            descricao: item.descricao,
+            imagemUrl: item.imagemUrl,
+            restauranteId: item.restaurante?.id
+          });
+        });
+      } else {
+        console.log('⚠️ Nenhum item encontrado para este restaurante');
+      }
+      
+      setItensRestaurante(itens || []);
+    } catch (err) {
+      console.error('❌ ERRO ao carregar itens do restaurante:', err);
+      console.error('🔍 Detalhes do erro:', {
+        message: err instanceof Error ? err.message : 'Erro desconhecido',
+        restauranteId,
+        apiUrl: `${API_BASE_URL}/itens/restaurante/${restauranteId}`
+      });
+      
+      // Em caso de erro, testar com dados de exemplo
+      console.log('🧪 Tentando teste com dados de exemplo...');
+      testarComDadosReais();
+      
+      setItensRestaurante([]);
+    } finally {
+      setLoadingItens(false);
+      console.log('🏁 Carregamento de itens finalizado');
+    }
+  };
+
+  // Função para carregar dados do restaurante
+  const carregarDadosRestaurante = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let restaurante: RestauranteResponse;
+
+      // Primeiro tenta usar os dados passados por parâmetro
+      if (restauranteData) {
+        try {
+          restaurante = JSON.parse(restauranteData as string);
+          console.log('📊 Usando dados do parâmetro:', restaurante);
+        } catch (e) {
+          throw new Error('Dados inválidos recebidos');
+        }
+      }
+      // Se não tiver dados do parâmetro, busca pela API
+      else if (id) {
+        console.log('🔍 Buscando restaurante pela API, ID:', id);
+        restaurante = await buscarRestaurante(Number(id));
+      } else {
+        throw new Error('ID do restaurante não fornecido');
+      }
+
+      setEmpresa(restaurante);
+
+      // Carregar itens do restaurante após carregar os dados
+      await carregarItensRestaurante(restaurante.id);
+
+    } catch (err) {
+      console.error('❌ Erro ao carregar dados do restaurante:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
+      
+      // Fallback para dados mockados em caso de erro
+      const empresaFallback = empresaData[id as string] || empresaData['1'];
+      console.log('🔄 Usando dados de fallback:', empresaFallback.nome);
+      // Convertendo dados mockados para o formato da API
+      setEmpresa({
+        id: Number(id) || 1,
+        nome: empresaFallback.nome,
+        cnpj: '00.000.000/0000-00',
+        telefone: empresaFallback.telefone,
+        email: 'contato@' + empresaFallback.nome.toLowerCase().replace(' ', '') + '.com',
+        rua: empresaFallback.endereco.split(',')[0] || '',
+        numero: 123,
+        bairro: empresaFallback.endereco.split('-')[1]?.split(',')[0]?.trim() || '',
+        cidade: empresaFallback.endereco.split(',')[2]?.trim() || 'Santos',
+        estado: 'SP',
+        cep: '11000-000',
+        descricao: empresaFallback.descricao,
+        horario: empresaFallback.horario,
+        lotacao: 6,
+        site: empresaFallback.links.site,
+        facebook: empresaFallback.links.facebook,
+        instagram: empresaFallback.links.instagram,
+        whatsapp: empresaFallback.links.whatsapp,
+        cardapioUrl: empresaFallback.links.cardapio,
+        logoUrl: null,
+        bannerUrl: null,
+        aceitaComunicacao: true,
+        aceitaMarketing: false,
+        aceitaProtecaoDados: true,
+      } as RestauranteResponse);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar dados quando o componente montar
+  useEffect(() => {
+    carregarDadosRestaurante();
+  }, [id, restauranteData]);
 
   const handleCopy = (text: string, label: string) => {
     Clipboard.setString(text);
@@ -549,7 +912,7 @@ const PerfilEmpresa = () => {
       observacoes,
       ingredientesRemovidos,
       ingredientesAdicionados,
-      empresa: empresa.nome
+      empresa: empresaCompleta.nome
     };
     
     setCarrinho(prev => [...prev, itemDoCarrinho]);
@@ -592,12 +955,247 @@ const PerfilEmpresa = () => {
     fecharModalAvaliacao();
   }
 
+  function abrirCardapio() {
+    console.log('🍽️ Abrindo cardápio - URL:', empresaCompleta?.cardapioUrl);
+    if (empresaCompleta?.cardapioUrl && empresaCompleta.cardapioUrl !== '#') {
+      // Primeiro tenta abrir o modal interno
+      setModalCardapioVisible(true);
+    } else {
+      toast({
+        title: "Cardápio",
+        description: "Link do cardápio não disponível no momento.",
+      });
+    }
+  }
+
+  function construirUrlCardapio(cardapioUrl: string): string {
+    // Se a URL já é completa (com http/https), usa ela
+    if (cardapioUrl.startsWith('http://') || cardapioUrl.startsWith('https://')) {
+      // Extrai apenas o caminho após o domínio para reconstruir com nossa API_BASE_URL
+      try {
+        const url = new URL(cardapioUrl);
+        const caminhoRelativo = url.pathname;
+        return `${API_BASE_URL}${caminhoRelativo}`;
+      } catch (e) {
+        console.warn('Erro ao processar URL:', e);
+        return cardapioUrl;
+      }
+    }
+    
+    // Se é apenas um caminho relativo, adiciona a API_BASE_URL
+    const caminho = cardapioUrl.startsWith('/') ? cardapioUrl : `/${cardapioUrl}`;
+    return `${API_BASE_URL}${caminho}`;
+  }
+
+  function abrirCardapioExterno() {
+    if (empresaCompleta?.cardapioUrl && empresaCompleta.cardapioUrl !== '#') {
+      const urlCorrigida = construirUrlCardapio(empresaCompleta.cardapioUrl);
+      
+      console.log('🔗 URL original:', empresaCompleta.cardapioUrl);
+      console.log('🏗️ API_BASE_URL:', API_BASE_URL);
+      console.log('🔧 URL construída:', urlCorrigida);
+      console.log('🚀 Abrindo URL...');
+      
+      Linking.openURL(urlCorrigida).then(() => {
+        console.log('✅ URL aberta com sucesso');
+      }).catch((err) => {
+        console.error('❌ Erro ao abrir URL:', err);
+      });
+      
+      setModalCardapioVisible(false);
+    } else {
+      console.log('❌ URL do cardápio inválida ou vazia');
+    }
+  }
+
+  // Renderizar loading
+  if (loading) {
+    return (
+      <View style={indexStyles.main}>
+        <Header 
+          logo="Saborê" 
+          cartItemCount={carrinho.length}
+          onCartPress={abrirCarrinho}
+        />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <ActivityIndicator size="large" color={colors.verdeFolha} />
+          <Text style={{ color: colors.preto, fontSize: 16, marginTop: 16, textAlign: 'center' }}>
+            Carregando dados do restaurante...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Renderizar erro (ainda permite fallback)
+  if (error && !empresa) {
+    return (
+      <View style={indexStyles.main}>
+        <Header 
+          logo="Saborê" 
+          cartItemCount={carrinho.length}
+          onCartPress={abrirCarrinho}
+        />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: '#E11D48', fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 16 }}>
+            Erro ao carregar restaurante
+          </Text>
+          <Text style={{ color: colors.preto, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            onPress={carregarDadosRestaurante}
+            style={{
+              backgroundColor: colors.verdeFolha,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              borderRadius: 8
+            }}
+          >
+            <Text style={{ color: colors.branco, fontWeight: 'bold' }}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (!empresa) {
+    return null;
+  }
+
   // Seleciona os pratos conforme o restaurante
-  const isBrasileiro = empresa.nome === 'Brasil Brasileiro';
-  const isCozinhaMae = empresa.nome === 'Cozinha da Mãe';
-  const pratosQuentesExibir = isBrasileiro ? pratosBrasileiros.quentes : isCozinhaMae ? pratosCozinhaMae.quentes : pratosQuentes;
-  const pratosFriosExibir = isBrasileiro ? pratosBrasileiros.frios : isCozinhaMae ? pratosCozinhaMae.frios : pratosFrios;
-  const pratosFavoritosExibir = isBrasileiro ? pratosBrasileiros.favoritos : isCozinhaMae ? pratosCozinhaMae.favoritos : pratosFavoritos;
+  // Organizar pratos reais por categoria
+  console.log('🔄 === PROCESSANDO PRATOS PARA EXIBIÇÃO ===');
+  console.log('📦 Itens do restaurante disponíveis:', itensRestaurante.length);
+  
+  const pratosAdaptados = itensRestaurante.map((item, index) => {
+    console.log(`🔄 Adaptando item ${index + 1}:`, item);
+    const adaptado = adaptarItemParaCardPrato(item);
+    console.log(`✅ Item adaptado ${index + 1}:`, adaptado);
+    return adaptado;
+  });
+  
+  console.log('📋 Total de pratos adaptados:', pratosAdaptados.length);
+  
+  // Como todos os pratos do backend são "Prato Principal", vamos distribuir de forma simples
+  console.log('📊 Distribuindo pratos reais entre categorias...');
+  
+  // Dividir os pratos em 3 grupos para as 3 seções
+  const totalPratos = pratosAdaptados.length;
+  const pratosQuentesReais = pratosAdaptados.slice(0, Math.ceil(totalPratos / 2)); // Primeira metade
+  const pratosFriosReais = pratosAdaptados.slice(Math.ceil(totalPratos / 2)); // Segunda metade
+  const pratosFavoritosReais = pratosAdaptados.slice(0, Math.min(3, totalPratos)); // Primeiros 3 como favoritos
+  
+  console.log('📊 Distribuição por categoria:');
+  console.log('🔥 Quentes:', pratosQuentesReais.length);
+  console.log('🧊 Frios:', pratosFriosReais.length);
+  console.log('⭐ Favoritos:', pratosFavoritosReais.length);
+  
+  // Fallback para dados mock se não houver pratos reais
+  const isBrasileiro = empresa?.nome === 'Brasil Brasileiro';
+  const isCozinhaMae = empresa?.nome === 'Cozinha da Mãe';
+  
+  const pratosQuentesExibir = pratosQuentesReais.length > 0 ? pratosQuentesReais : 
+    (isBrasileiro ? pratosBrasileiros.quentes : isCozinhaMae ? pratosCozinhaMae.quentes : pratosQuentes);
+    
+  const pratosFriosExibir = pratosFriosReais.length > 0 ? pratosFriosReais :
+    (isBrasileiro ? pratosBrasileiros.frios : isCozinhaMae ? pratosCozinhaMae.frios : pratosFrios);
+    
+  const pratosFavoritosExibir = pratosFavoritosReais.length > 0 ? pratosFavoritosReais :
+    (isBrasileiro ? pratosBrasileiros.favoritos : isCozinhaMae ? pratosCozinhaMae.favoritos : pratosFavoritos);
+
+  console.log('🎯 Pratos finais para exibição:');
+  console.log('🔥 Quentes a exibir:', pratosQuentesExibir.length, pratosQuentesExibir);
+  console.log('🧊 Frios a exibir:', pratosFriosExibir.length, pratosFriosExibir);
+  console.log('⭐ Favoritos a exibir:', pratosFavoritosExibir.length, pratosFavoritosExibir);
+  
+  // Log específico para debug de renderização
+  console.log('🖥️ === DEBUG DE RENDERIZAÇÃO ===');
+  console.log('🏪 Empresa atual:', empresa?.nome, 'ID:', empresa?.id);
+  console.log('📦 itensRestaurante estado:', itensRestaurante.length, 'itens');
+  console.log('🔄 pratosAdaptados:', pratosAdaptados.length, 'pratos adaptados');
+  console.log('⚡ loadingItens:', loadingItens);
+  
+  // Testar se pelo menos um prato vai ser renderizado
+  if (pratosQuentesExibir.length > 0 || pratosFriosExibir.length > 0 || pratosFavoritosExibir.length > 0) {
+    console.log('✅ PELO MENOS UMA SEÇÃO TEM PRATOS PARA EXIBIR');
+  } else {
+    console.log('❌ NENHUMA SEÇÃO TEM PRATOS PARA EXIBIR - PROBLEMA ENCONTRADO!');
+  }
+
+  // Função para validar se URL de imagem é válida
+  const isValidImageUrl = (url: string | null | undefined): boolean => {
+    if (!url) return false;
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return false;
+    
+    // Verificar se é uma URL válida
+    const isValidUrl = trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
+    
+    // Verificar se parece ser uma URL de imagem
+    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(trimmedUrl);
+    const isImageUrl = isValidUrl && (hasImageExtension || trimmedUrl.includes('/upload/') || trimmedUrl.includes('/images/'));
+    
+    // Log para debug
+    console.log(`🖼️ Validando imagem:`, {
+      url: trimmedUrl,
+      isValidUrl,
+      hasImageExtension,
+      isImageUrl,
+      length: trimmedUrl.length
+    });
+    
+    return isImageUrl;
+  };
+
+  // Array de imagens padrão para variar entre restaurantes
+  const imagensPadrao = [
+    require('../assets/restaurante1.png'),
+    require('../assets/restaurante2.png'),
+    require('../assets/rest1.png'),
+    require('../assets/rest2.png')
+  ];
+
+  // Escolher imagem padrão baseada no ID do restaurante para consistência
+  const imagemPadraoIndex = empresa.id % imagensPadrao.length;
+  const imagemPadrao = imagensPadrao[imagemPadraoIndex];
+
+  // Construir dados da empresa com fallbacks para campos não existentes no backend
+  const empresaCompleta = {
+    ...empresa,
+    // Campos calculados/simulados
+    aberto: true, // Simular como sempre aberto (pode implementar lógica de horário depois)
+    avaliacao: 4.5, // Fallback (getAvaliacaoMedia() virá do backend depois)
+    // Links formatados
+    links: {
+      site: empresa.site || '#',
+      facebook: empresa.facebook || '#',
+      instagram: empresa.instagram || '#',
+      whatsapp: empresa.whatsapp || '#',
+      maps: `https://maps.google.com/?q=${encodeURIComponent([empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', '))}`,
+      email: `mailto:${empresa.email}`,
+      cardapio: empresa.cardapioUrl || '#',
+    },
+    // Endereço formatado
+    endereco: [empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ') || 'Endereço não informado',
+    // Imagens com validação e fallback melhorados
+    banner: isValidImageUrl(empresa.bannerUrl) ? { uri: empresa.bannerUrl } : imagemPadrao,
+    logo: isValidImageUrl(empresa.logoUrl) ? { uri: empresa.logoUrl } : imagemPadrao,
+    // Textos informativos (não existem no backend, usar padrões)
+    funcionamento: empresa.descricao || 'Restaurante com comida de qualidade e atendimento especial.',
+    acusticos: 'Consulte nossos eventos especiais nas redes sociais.',
+    reservas: 'Entre em contato conosco para fazer reservas.',
+  };
+
+  // Log final das imagens para debug
+  console.log(`🏪 ${empresa.nome} - Imagens:`, {
+    logoUrl: empresa.logoUrl,
+    bannerUrl: empresa.bannerUrl,
+    logoFinal: empresaCompleta.logo,
+    bannerFinal: empresaCompleta.banner,
+    logoIsUri: empresaCompleta.logo?.uri ? true : false,
+    bannerIsUri: empresaCompleta.banner?.uri ? true : false
+  });
 
   return (
     <View style={indexStyles.main}>
@@ -609,7 +1207,11 @@ const PerfilEmpresa = () => {
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 32 }}>
         {/* Banner com gradiente e nome */}
         <View style={[perfilEmpresaStyles.bannerContainer, { height: isSmallScreen ? 160 : isMediumScreen ? 200 : 220 }]}>
-          <Image source={empresa.banner} style={[perfilEmpresaStyles.bannerImage, { height: isSmallScreen ? 160 : isMediumScreen ? 200 : 220 }]} />
+          <ImageWithFallback 
+            source={empresaCompleta.banner} 
+            fallbackSource={imagemPadrao}
+            style={[perfilEmpresaStyles.bannerImage, { height: isSmallScreen ? 160 : isMediumScreen ? 200 : 220 }]} 
+          />
           <LinearGradient
             colors={[ 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.7)' ]}
             style={perfilEmpresaStyles.bannerGradient}
@@ -632,9 +1234,9 @@ const PerfilEmpresa = () => {
               zIndex: 10,
             }}
           >
-            <StarRating rating={empresa.avaliacao || 4.8} size={isSmallScreen ? 18 : 22} />
+            <StarRating rating={empresaCompleta.avaliacao} size={isSmallScreen ? 18 : 22} />
             <Text style={{ color: colors.amareloOuro, fontWeight: 'bold', fontSize: isSmallScreen ? 16 : 18, marginLeft: 10 }}>
-              {empresa.avaliacao ? empresa.avaliacao.toFixed(1) : '4.8'}
+              {empresaCompleta.avaliacao.toFixed(1)}
             </Text>
           </TouchableOpacity>
         </View>
@@ -642,9 +1244,13 @@ const PerfilEmpresa = () => {
         <View style={perfilEmpresaStyles.mainContentContainer}>
           {/* Logo e descrição */}
           <View style={[perfilEmpresaStyles.logoContainer, { flexDirection: isSmallScreen ? 'column' : 'row', alignItems: isSmallScreen ? 'center' : 'center' }]}>
-            <Image source={empresa.logo} style={[perfilEmpresaStyles.logo, { width: isSmallScreen ? 96 : 120, height: isSmallScreen ? 96 : 120, borderRadius: isSmallScreen ? 48 : 60 }]} />
+            <ImageWithFallback 
+              source={empresaCompleta.logo} 
+              fallbackSource={imagemPadrao}
+              style={[perfilEmpresaStyles.logo, { width: isSmallScreen ? 96 : 120, height: isSmallScreen ? 96 : 120, borderRadius: isSmallScreen ? 48 : 60 }]} 
+            />
             <View style={{ flex: 1, marginLeft: isSmallScreen ? 0 : 20, marginTop: isSmallScreen ? 8 : 0 }}>
-              <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: isSmallScreen ? 'center' : 'left', fontSize: isSmallScreen ? 24 : 30 }]}>{empresa.nome}</Text>
+              <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: isSmallScreen ? 'center' : 'left', fontSize: isSmallScreen ? 24 : 30 }]}>{empresaCompleta.nome}</Text>
             </View>
           </View>
 
@@ -666,20 +1272,20 @@ const PerfilEmpresa = () => {
               ]}
             >
               <View style={perfilEmpresaStyles.infoItem}>
-                <Text style={perfilEmpresaStyles.infoIcon}>{empresa.aberto ? '🟢' : '🔴'}</Text>
-                <Text style={perfilEmpresaStyles.infoText}>{empresa.aberto ? 'Aberto' : 'Fechado'}</Text>
+                <Text style={perfilEmpresaStyles.infoIcon}>{empresaCompleta.aberto ? '🟢' : '🔴'}</Text>
+                <Text style={perfilEmpresaStyles.infoText}>{empresaCompleta.aberto ? 'Aberto' : 'Fechado'}</Text>
               </View>
               <View style={perfilEmpresaStyles.infoItem}>
                 <FontAwesome name="phone" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
-                <Text style={perfilEmpresaStyles.infoText}>{empresa.telefone}</Text>
-                <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresa.telefone, 'telefone')} accessibilityLabel="Copiar telefone">
+                <Text style={perfilEmpresaStyles.infoText}>{empresaCompleta.telefone || 'Não informado'}</Text>
+                <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresaCompleta.telefone || '', 'telefone')} accessibilityLabel="Copiar telefone">
                   <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>{copied === 'telefone' ? '✔️' : '📋'}</Text>
                 </TouchableOpacity>
               </View>
               <View style={perfilEmpresaStyles.infoItem}>
                 <FontAwesome name="map-marker" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
-                <Text style={perfilEmpresaStyles.infoText}>{empresa.endereco}</Text>
-                <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresa.endereco, 'endereco')} accessibilityLabel="Copiar endereço">
+                <Text style={perfilEmpresaStyles.infoText}>{empresaCompleta.endereco}</Text>
+                <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresaCompleta.endereco, 'endereco')} accessibilityLabel="Copiar endereço">
                   <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>{copied === 'endereco' ? '✔️' : '📋'}</Text>
                 </TouchableOpacity>
               </View>
@@ -701,22 +1307,22 @@ const PerfilEmpresa = () => {
                 { justifyContent: isLargeScreenRuntime ? 'flex-start' : 'center', flexWrap: isLargeScreenRuntime ? 'nowrap' : 'wrap' },
               ]}
             >
-              <TouchableOpacity accessibilityLabel="Site" onPress={() => Linking.openURL(empresa.links.site)}>
+              <TouchableOpacity accessibilityLabel="Site" onPress={() => Linking.openURL(empresaCompleta.links.site)}>
                 <FontAwesome name="globe" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Facebook" onPress={() => Linking.openURL(empresa.links.facebook)}>
+              <TouchableOpacity accessibilityLabel="Facebook" onPress={() => Linking.openURL(empresaCompleta.links.facebook)}>
                 <FontAwesome name="facebook" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Instagram" onPress={() => Linking.openURL(empresa.links.instagram)}>
+              <TouchableOpacity accessibilityLabel="Instagram" onPress={() => Linking.openURL(empresaCompleta.links.instagram)}>
                 <FontAwesome name="instagram" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="WhatsApp" onPress={() => Linking.openURL(empresa.links.whatsapp)}>
+              <TouchableOpacity accessibilityLabel="WhatsApp" onPress={() => Linking.openURL(empresaCompleta.links.whatsapp)}>
                 <FontAwesome name="whatsapp" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Maps" onPress={() => Linking.openURL(empresa.links.maps)}>
+              <TouchableOpacity accessibilityLabel="Maps" onPress={() => Linking.openURL(empresaCompleta.links.maps)}>
                 <FontAwesome name="map-marker" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="E-mail" onPress={() => Linking.openURL(empresa.links.email)}>
+              <TouchableOpacity accessibilityLabel="E-mail" onPress={() => Linking.openURL(empresaCompleta.links.email)}>
                 <FontAwesome name="envelope" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
               </TouchableOpacity>
             </View>
@@ -741,20 +1347,64 @@ const PerfilEmpresa = () => {
                 marginRight: isLargeScreen ? 40 : 0,
               }}>
                 <View style={perfilEmpresaStyles.card}>
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>⏰</Text>Funcionamento</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresa.funcionamento}</Text>
+                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📍</Text>Informações</Text>
+                  <Text style={perfilEmpresaStyles.cardText}>{empresaCompleta.funcionamento}</Text>
                   <View style={perfilEmpresaStyles.separator} />
                   <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>🗓️</Text>Horário</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresa.horario}</Text>
+                  <Text style={perfilEmpresaStyles.cardText}>{empresaCompleta.horario || 'Horário não informado'}</Text>
                   <View style={perfilEmpresaStyles.separator} />
                   <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>👥</Text>Lotação</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresa.lotacao}</Text>
+                  <Text style={perfilEmpresaStyles.cardText}>
+                    {empresaCompleta.lotacao ? `Capacidade para ${empresaCompleta.lotacao} pessoas` : 'Capacidade não informada'}
+                  </Text>
                   <View style={perfilEmpresaStyles.separator} />
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>🎶</Text>Acústicos</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresa.acusticos}</Text>
+                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📋</Text>Cardápio</Text>
+                  {empresaCompleta.cardapioUrl && empresaCompleta.cardapioUrl !== '#' ? (
+                    <TouchableOpacity
+                      onPress={abrirCardapio}
+                      style={{
+                        backgroundColor: colors.verdeFolha,
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        marginBottom: 12,
+                        borderWidth: 1,
+                        borderColor: colors.verdeFolha
+                      }}
+                    >
+                      <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>
+                        📖 Ver Cardápio Completo
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{
+                      backgroundColor: colors.branco,
+                      borderWidth: 1,
+                      borderColor: colors.marromFeijao,
+                      borderStyle: 'dashed',
+                      borderRadius: 8,
+                      padding: 16,
+                      alignItems: 'center',
+                      marginBottom: 12
+                    }}>
+                      <Text style={{ color: colors.marromFeijao, fontSize: 14, textAlign: 'center', marginBottom: 8 }}>
+                        📄 Cardápio em breve
+                      </Text>
+                      <Text style={{ color: colors.preto, fontSize: 12, textAlign: 'center', opacity: 0.8 }}>
+                        O restaurante ainda não cadastrou o cardápio digital. Entre em contato para mais informações.
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={perfilEmpresaStyles.cardText}>
+                    <Text style={{ fontWeight: 'bold' }}>Contato:</Text> {empresaCompleta.email}
+                  </Text>
+                  <Text style={perfilEmpresaStyles.cardText}>
+                    <Text style={{ fontWeight: 'bold' }}>CNPJ:</Text> {empresaCompleta.cnpj || 'Não informado'}
+                  </Text>
                   <View style={perfilEmpresaStyles.separator} />
                   <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📋</Text>Reservas</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresa.reservas}</Text>
+                  <Text style={perfilEmpresaStyles.cardText}>{empresaCompleta.reservas}</Text>
                 </View>
               </View>
 
@@ -779,9 +1429,12 @@ const PerfilEmpresa = () => {
                     }} 
                     style={{ marginBottom: 18, width: '100%' }}
                   >
-                    {pratosQuentesExibir.map((prato, idx) => (
-                      <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
-                    ))}
+                    {pratosQuentesExibir.map((prato, idx) => {
+                      console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, prato);
+                      return (
+                        <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                      );
+                    })}
                   </ScrollView>
                 </View>
                 {/* Categoria Frios */}
@@ -1026,6 +1679,98 @@ const PerfilEmpresa = () => {
             </View>
               </ScrollView>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal do Cardápio */}
+      <Modal
+        visible={modalCardapioVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalCardapioVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ 
+            backgroundColor: colors.branco, 
+            borderRadius: 20, 
+            width: '100%', 
+            maxWidth: 500,
+            alignItems: 'center',
+            padding: 28,
+            borderWidth: 2,
+            borderColor: colors.verdeFolha,
+            shadowColor: colors.marromFeijao,
+            shadowOpacity: 0.18,
+            shadowRadius: 12,
+            elevation: 10,
+          }}>
+            <Text style={{ 
+              color: colors.verdeFolha, 
+              fontWeight: 'bold', 
+              fontSize: 22, 
+              marginBottom: 18, 
+              textAlign: 'center', 
+              letterSpacing: 1 
+            }}>
+              📋 Cardápio do {empresaCompleta?.nome}
+            </Text>
+            
+            <Text style={{ 
+              color: colors.preto, 
+              fontSize: 16, 
+              textAlign: 'center', 
+              marginBottom: 24,
+              lineHeight: 22
+            }}>
+              Escolha como visualizar nosso cardápio:
+            </Text>
+
+            <View style={{ width: '100%', gap: 12 }}>
+              <TouchableOpacity 
+                onPress={abrirCardapioExterno}
+                style={{ 
+                  backgroundColor: colors.verdeFolha,
+                  paddingVertical: 14,
+                  paddingHorizontal: 20,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: colors.verdeFolha
+                }}
+              >
+                <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>
+                  🌐 Abrir em Nova Aba
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={() => setModalCardapioVisible(false)}
+                style={{ 
+                  backgroundColor: colors.branco,
+                  paddingVertical: 14,
+                  paddingHorizontal: 20,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: colors.marromFeijao
+                }}
+              >
+                <Text style={{ color: colors.marromFeijao, fontWeight: 'bold', fontSize: 16 }}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ 
+              color: colors.preto, 
+              fontSize: 12, 
+              textAlign: 'center', 
+              marginTop: 16,
+              opacity: 0.8
+            }}>
+              O cardápio será aberto em seu navegador padrão
+            </Text>
           </View>
         </View>
       </Modal>

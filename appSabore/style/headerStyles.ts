@@ -15,19 +15,25 @@ export const headerStyles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: isSmallScreen ? 8 : isLargeScreen ? 24 : 16,
-    paddingHorizontal: isSmallScreen ? 10 : isLargeScreen ? 64 : 32,
-    backgroundColor: colors.branco, // era #F5F5F3
-    borderBottomWidth: 1.5,
-    borderBottomColor: colors.marromFeijao, // era #650C0C
+    paddingTop: isSmallScreen ? 16 : isLargeScreen ? 24 : 16, // Padding superior aumentado para mobile
+    paddingBottom: isSmallScreen ? 4 : isLargeScreen ? 24 : 16,
+    paddingHorizontal: isSmallScreen ? 6 : isLargeScreen ? 64 : 32,
+    backgroundColor: colors.branco,
+    // Removida a linha e adicionada sombra mais sutil
+    borderBottomWidth: 0,
+    shadowColor: colors.preto,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
     boxSizing: 'border-box',
     position: 'relative',
     zIndex: 9999,
   },
   logo: {
-    fontSize: isSmallScreen ? 20 : isLargeScreen ? 40 : 32,
+    fontSize: isSmallScreen ? 16 : isLargeScreen ? 40 : 32, // Ainda mais reduzido para mobile
     fontWeight: 'bold',
-    color: colors.verdeFolha, // era #650C0C
+    color: colors.verdeFolha,
     letterSpacing: 1,
   },
   actions: {
@@ -42,22 +48,22 @@ export const headerStyles = StyleSheet.create({
     paddingVertical: isSmallScreen ? 4 : 8,
     paddingHorizontal: isSmallScreen ? 12 : 24,
     fontSize: isSmallScreen ? 12 : 16,
-    color: colors.verdeFolha, // era #650C0C
-    backgroundColor: colors.branco, // novo: fundo branco
+    color: colors.verdeFolha,
+    backgroundColor: colors.branco,
     borderRadius: 8,
     fontWeight: '500',
     borderWidth: 1.5,
-    borderColor: colors.verdeFolha, // novo: borda verde-folha
+    borderColor: colors.verdeFolha,
     marginLeft: isSmallScreen ? 4 : 8,
   },
   btnActive: {
     borderWidth: 2,
-    borderColor: colors.verdeFolha, // novo: verde-folha
-    backgroundColor: colors.verdeFolha, // novo: fundo verde-folha
+    borderColor: colors.verdeFolha,
+    backgroundColor: colors.verdeFolha,
   },
   btnRegister: {
-    backgroundColor: colors.vermelhoCambuci, // novo: vermelho-cambuci
-    color: colors.branco, // novo: texto branco
+    backgroundColor: colors.vermelhoCambuci,
+    color: colors.branco,
     fontWeight: '600',
     borderColor: colors.vermelhoCambuci,
     borderWidth: 1.5,
@@ -76,17 +82,17 @@ export const headerStyles = StyleSheet.create({
     position: 'absolute',
     top: isSmallScreen ? -2 : -4,
     right: isSmallScreen ? -2 : -4,
-    backgroundColor: colors.amareloOuro, // novo: amarelo-ouro
+    backgroundColor: colors.amareloOuro,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.branco, // novo: branco
+    borderColor: colors.branco,
   },
   cartBadgeText: {
-    color: colors.marromFeijao, // novo: marrom-feijão
+    color: colors.marromFeijao,
     fontSize: isSmallScreen ? 10 : 12,
     fontWeight: 'bold',
   },

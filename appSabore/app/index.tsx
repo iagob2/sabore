@@ -1,9 +1,10 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { View, ScrollView, Image, Text, Dimensions, TouchableOpacity, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Image, Text, Dimensions, TouchableOpacity, useWindowDimensions, Platform, ActivityIndicator, RefreshControl } from 'react-native';
 import Header from '../components/Header';
 import Input from '../components/Input';
 import HorizontalCardCarousel from '../components/HorizontalCardCarousel';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { toast } from '../hooks/use-toast';
 import { indexStyles } from '../style/indexStyles';
 import { useRouter } from 'expo-router';
@@ -11,8 +12,6 @@ import { colors } from '../style/colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { listarRestaurantes, RestauranteResponse } from '../api/restaurante';
-
-// Removido o banner estático em favor do carrossel de ofertas
 
 const Index = () => {
   const [name, setName] = useState('');
@@ -23,17 +22,18 @@ const Index = () => {
   const { width: screenWidth } = useWindowDimensions();
   const isSmallScreen = screenWidth < 380;
   const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
-  const carouselHeight = isSmallScreen ? 200 : isMediumScreen ? 240 : 300;
-  const titleFontSize = isSmallScreen ? 16 : 18;
-  const subtitleFontSize = isSmallScreen ? 13 : 14;
-  const descFontSize = isSmallScreen ? 11 : 12;
-  const arrowButtonSize = isSmallScreen ? 34 : 40;
+  const carouselHeight = isSmallScreen ? 220 : isMediumScreen ? 260 : 320;
+  const titleFontSize = isSmallScreen ? 18 : 20;
+  const subtitleFontSize = isSmallScreen ? 14 : 16;
+  const descFontSize = isSmallScreen ? 12 : 14;
+  const arrowButtonSize = isSmallScreen ? 36 : 44;
   const arrowIconSize = isSmallScreen ? 24 : 28;
-  const searchInputWidth = Math.min(520, Math.max(260, Math.floor(screenWidth * 0.9)));
+  const searchInputWidth = Math.min(520, Math.max(280, Math.floor(screenWidth * 0.9)));
   const [searchQuery, setSearchQuery] = useState('');
   const [useLocationFilter, setUseLocationFilter] = useState(false);
   const [userLocation, setUserLocation] = useState<null | { latitude: number; longitude: number }>(null);
   const [radiusKm, setRadiusKm] = useState(10);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Estados para dados do backend
   const [restaurantes, setRestaurantes] = useState<RestauranteResponse[]>([]);
@@ -48,22 +48,6 @@ const Index = () => {
       const dados = await listarRestaurantes();
       console.log('Restaurantes carregados da API:', dados);
       
-      // Log detalhado das URLs de imagem para debug
-      dados.forEach((rest, index) => {
-        const logoUrl = rest.logoUrl?.trim();
-        const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
-        
-        console.log(`🏪 Restaurante ${index + 1} (${rest.nome}):`, {
-          id: rest.id,
-          logoUrl: rest.logoUrl,
-          logoUrlTrimmed: logoUrl,
-          temLogo: !!rest.logoUrl,
-          temLogoValida: temLogoValida,
-          bannerUrl: rest.bannerUrl,
-          cardapioUrl: rest.cardapioUrl
-        });
-      });
-      
       setRestaurantes(dados);
     } catch (err) {
       console.error('Erro ao carregar restaurantes:', err);
@@ -74,7 +58,14 @@ const Index = () => {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  // Função para pull-to-refresh
+  const onRefresh = () => {
+    setRefreshing(true);
+    carregarRestaurantes();
   };
 
   // Carregar dados quando o componente montar
@@ -92,40 +83,33 @@ const Index = () => {
 
   // Função para adaptar dados da API para o formato dos cards
   const adaptarRestauranteParaCard = (restaurante: RestauranteResponse, index: number = 0) => {
-    // Verificar se a URL da logo é válida
     const logoUrl = restaurante.logoUrl?.trim();
     const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
-    
-    // Escolher imagem padrão baseada no ID do restaurante para consistência
     const imagemPadrao = imagensPadrao[restaurante.id % imagensPadrao.length];
     
-    console.log(`🖼️ Imagem para ${restaurante.nome}:`, {
-      restauranteId: restaurante.id,
-      logoUrl,
-      temLogoValida,
-      imagemPadraoIndex: restaurante.id % imagensPadrao.length,
-      usandoImagemPadrao: !temLogoValida
-    });
+    // Gerar dados aleatórios para demonstração
+    const deliveryTimes = ['20-30 min', '30-45 min', '15-25 min', '25-35 min'];
+    const deliveryFees = ['Grátis', 'R$ 3,00', 'R$ 5,00', 'R$ 2,50'];
+    const distances = ['0.8 km', '1.2 km', '0.5 km', '1.5 km'];
     
     return {
       id: restaurante.id.toString(),
       imageUrl: temLogoValida ? { uri: logoUrl } : imagemPadrao,
       name: restaurante.nome,
-      rating: 4.5, // Rating padrão - você pode implementar um sistema de avaliações depois
+      rating: 4.0 + (Math.random() * 0.9), // Rating entre 4.0 e 4.9
       subtitle: restaurante.descricao || 'Deliciosos pratos esperando por você',
-      // Coordenadas padrão de São Paulo se não tiver no banco
       latitude: -23.5505,
       longitude: -46.6333,
-      // Adicionar dados originais para debug
-      _debug: {
-        logoUrl: restaurante.logoUrl,
-        temLogoValida,
-        imagemPadraoUsada: !temLogoValida ? `imagem${(restaurante.id % imagensPadrao.length) + 1}` : null
-      }
+      // Novos dados para melhorar a experiência
+      deliveryTime: deliveryTimes[restaurante.id % deliveryTimes.length],
+      deliveryFee: deliveryFees[restaurante.id % deliveryFees.length],
+      distance: distances[restaurante.id % distances.length],
+      isNew: restaurante.id % 5 === 0, // 20% dos restaurantes são novos
+      hasPromotion: restaurante.id % 3 === 0, // 33% têm promoções
     };
   };
 
-  // Dados dos restaurantes
+  // Dados dos restaurantes locais
   const cardData = [
     {
       id: '1',
@@ -134,7 +118,12 @@ const Index = () => {
       rating: 4.9,
       subtitle: 'A melhor moqueca da cidade',
       latitude: -23.55052,
-      longitude: -46.633308
+      longitude: -46.633308,
+      deliveryTime: '25-35 min',
+      deliveryFee: 'Grátis',
+      distance: '0.8 km',
+      isNew: false,
+      hasPromotion: true,
     },
     {
       id: '2',
@@ -143,7 +132,12 @@ const Index = () => {
       rating: 4.8,
       subtitle: 'O melhor acarajé da cidade',
       latitude: -23.559616,
-      longitude: -46.658279
+      longitude: -46.658279,
+      deliveryTime: '20-30 min',
+      deliveryFee: 'R$ 3,00',
+      distance: '1.2 km',
+      isNew: true,
+      hasPromotion: false,
     },
     {
       id: '3',
@@ -152,19 +146,22 @@ const Index = () => {
       rating: 4.7,
       subtitle: 'Sashimis frescos e delivery rápido',
       latitude: -23.566246,
-      longitude: -46.652381
+      longitude: -46.652381,
+      deliveryTime: '15-25 min',
+      deliveryFee: 'R$ 5,00',
+      distance: '0.5 km',
+      isNew: false,
+      hasPromotion: true,
     }
   ];
 
   const handleCardClick = (id: string) => {
     const card = todosOsCards.find(c => c.id === id);
     if (card) {
-      // Navegar para o perfil da empresa
       router.push({
         pathname: '/perfilEmpresa',
         params: { 
           id: id,
-          // Se temos dados da API, passamos eles
           ...(restaurantes.length > 0 && { 
             restauranteData: JSON.stringify(restaurantes.find(r => r.id.toString() === id))
           })
@@ -214,8 +211,6 @@ const Index = () => {
   const ofertasDinamicas = restaurantes.slice(0, 4).map((restaurante, index) => {
     const logoUrl = restaurante.logoUrl?.trim();
     const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
-    
-    // Usar a mesma lógica de imagem padrão variada
     const imagemPadrao = imagensPadrao[restaurante.id % imagensPadrao.length];
     
     return {
@@ -320,7 +315,10 @@ const Index = () => {
     ...(restaurantes.length === 0 ? cardData : [])
   ];
 
-  const filteredCards = todosOsCards.filter((card: any) => {
+  // Garantir que sempre temos dados para exibir - priorizar dados locais quando há erro
+  const cardsParaExibir = error || restaurantes.length === 0 ? cardData : todosOsCards;
+
+  const filteredCards = cardsParaExibir.filter((card: any) => {
     const matchesText = `${card.name} ${card.subtitle ?? ''}`
       .toLowerCase()
       .includes(searchQuery.trim().toLowerCase());
@@ -340,11 +338,22 @@ const Index = () => {
   return (
     <View style={indexStyles.main}>
       <Header 
-        logo="Japones APP" 
+        logo="Saborê" 
         cartItemCount={carrinho.length}
         onCartPress={abrirCarrinho}
       />
-      <ScrollView style={indexStyles.scroll} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView 
+        style={indexStyles.scroll} 
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.verdeFolha]}
+            tintColor={colors.verdeFolha}
+          />
+        }
+      >
         {/* Carrossel de Ofertas */}
         <View style={indexStyles.bannerContainer}>
           <View style={{
@@ -352,7 +361,12 @@ const Index = () => {
             height: carouselHeight,
             position: 'relative',
             overflow: 'hidden',
-            borderRadius: 12
+            borderRadius: 20,
+            shadowColor: colors.preto,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 20,
+            elevation: 12,
           }}>
             <ScrollView
               ref={scrollViewRef}
@@ -387,12 +401,17 @@ const Index = () => {
                     position: 'absolute',
                     top: 16,
                     right: 16,
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 12
+                    backgroundColor: colors.overlayEscuro,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    shadowColor: colors.preto,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 4,
                   }}>
-                    <Text style={{ color: '#fff', fontSize: 12 }}>
+                    <Text style={{ color: colors.branco, fontSize: 12, fontWeight: '600' }}>
                       {index + 1} / {offers.length}
                     </Text>
                   </View>
@@ -401,30 +420,32 @@ const Index = () => {
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    backgroundColor: 'rgba(0,0,0,0.6)',
-                    padding: 16,
-                    paddingBottom: 20
+                    backgroundColor: colors.overlayEscuro,
+                    padding: 20,
+                    paddingBottom: 24
                   }}>
                     <Text style={{
-                      color: '#fff',
+                      color: colors.branco,
                       fontSize: titleFontSize,
-                      fontWeight: 'bold',
-                      marginBottom: 4
+                      fontWeight: '700',
+                      marginBottom: 6,
+                      letterSpacing: 0.3,
                     }}>
-                      {offer.title} (Slide {index + 1})
+                      {offer.title}
                     </Text>
                     <Text style={{
-                      color: '#FBBF24',
+                      color: colors.amareloOuro,
                       fontSize: subtitleFontSize,
                       fontWeight: '600',
-                      marginBottom: 2
+                      marginBottom: 4,
                     }}>
                       {offer.subtitle}
                     </Text>
                     <Text style={{
-                      color: '#fff',
+                      color: colors.branco,
                       fontSize: descFontSize,
-                      opacity: 0.9
+                      opacity: 0.9,
+                      lineHeight: 18,
                     }}>
                       {offer.description}
                     </Text>
@@ -452,18 +473,23 @@ const Index = () => {
                   activeOpacity={0.7}
                   style={{
                     position: 'absolute',
-                    left: 8,
+                    left: 12,
                     width: arrowButtonSize,
                     height: arrowButtonSize,
                     borderRadius: arrowButtonSize / 2,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    backgroundColor: colors.overlayEscuro,
                     alignItems: 'center',
                     justifyContent: 'center',
                     opacity: currentSlide === 0 ? 0.4 : 1,
+                    shadowColor: colors.preto,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 4,
                   }}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                 >
-                  <MaterialIcons name="chevron-left" size={arrowIconSize} color="#fff" />
+                  <MaterialIcons name="chevron-left" size={arrowIconSize} color={colors.branco} />
                 </TouchableOpacity>
 
                 {/* Direita */}
@@ -473,79 +499,71 @@ const Index = () => {
                   activeOpacity={0.7}
                   style={{
                     position: 'absolute',
-                    right: 8,
+                    right: 12,
                     width: arrowButtonSize,
                     height: arrowButtonSize,
                     borderRadius: arrowButtonSize / 2,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    backgroundColor: colors.overlayEscuro,
                     alignItems: 'center',
                     justifyContent: 'center',
                     opacity: currentSlide === offers.length - 1 ? 0.4 : 1,
+                    shadowColor: colors.preto,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 4,
                   }}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                 >
-                  <MaterialIcons name="chevron-right" size={arrowIconSize} color="#fff" />
+                  <MaterialIcons name="chevron-right" size={arrowIconSize} color={colors.branco} />
                 </TouchableOpacity>
               </View>
             )}
           </View>
         </View>
-        {/* Busca e filtros */}
-        <View style={[indexStyles.carouselSection, { marginTop: 16 }]}>
-          <Text style={indexStyles.carouselTitle}>Buscar restaurantes</Text>
-          <View style={{ width: '100%', gap: 10 }}>
-            {/* Input centralizado em seu próprio contêiner */}
+
+        {/* Seção de Busca */}
+        <View style={indexStyles.searchSection}>
+          <Text style={indexStyles.searchTitle}>Encontre seu restaurante ideal</Text>
+          <View style={{ width: '100%', gap: 16 }}>
+            {/* Input centralizado */}
             <View style={{ alignItems: 'center' }}>
               <View style={{ width: searchInputWidth, alignSelf: 'center' }}>
                 <Input
-                  placeholder="Pesquise por nome, especialidade..."
+                  placeholder="Pesquise por nome, especialidade ou prato..."
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  icon="search"
                 />
               </View>
             </View>
 
-            {/* Botão centralizado abaixo do input */}
+            {/* Botão de localização */}
             <View style={{ alignItems: 'center' }}>
               <TouchableOpacity
                 onPress={handleUseLocation}
                 activeOpacity={0.85}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  backgroundColor: colors.marromFeijao,
-                  paddingHorizontal: 16,
-                  height: 44,
-                  borderRadius: 10,
-                }}
+                style={indexStyles.filterButton}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <MaterialIcons name="my-location" color="#fff" size={18} />
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Minha localização</Text>
+                <MaterialIcons name="my-location" color={colors.branco} size={18} />
+                <Text style={indexStyles.filterButtonText}>Usar minha localização</Text>
               </TouchableOpacity>
             </View>
 
+            {/* Filtros ativos */}
             {useLocationFilter && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <View style={indexStyles.filterContainer}>
                 <TouchableOpacity
                   onPress={clearLocationFilter}
                   activeOpacity={0.85}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    backgroundColor: '#E11D48',
-                    paddingHorizontal: 12,
-                    height: 36,
-                    borderRadius: 999,
-                  }}
+                  style={indexStyles.clearFilterButton}
                 >
-                  <MaterialIcons name="close" color="#fff" size={18} />
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>Remover filtro</Text>
+                  <MaterialIcons name="close" color={colors.branco} size={16} />
+                  <Text style={indexStyles.clearFilterText}>Remover filtro</Text>
                 </TouchableOpacity>
                 {userLocation && (
-                  <Text style={{ color: colors.preto, opacity: 0.8, textAlign: 'center' }}>
+                  <Text style={{ color: colors.cinzaEscuro, textAlign: 'center', fontSize: 14 }}>
                     Filtrando por proximidade (até {radiusKm} km)
                   </Text>
                 )}
@@ -554,82 +572,156 @@ const Index = () => {
           </View>
         </View>
 
-        {/* Resultados */}
+        {/* Resultados da Busca */}
+        {searchQuery.trim() || useLocationFilter ? (
         <View style={indexStyles.carouselSection}>
-          <Text style={indexStyles.carouselTitle}>Resultados</Text>
+            <Text style={indexStyles.carouselTitle}>
+              {loading ? 'Buscando...' : `Resultados (${filteredCards.length})`}
+            </Text>
           {loading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-              <ActivityIndicator size="large" color={colors.marromFeijao} />
-              <Text style={{ color: colors.preto, opacity: 0.8, marginTop: 8 }}>
-                Carregando restaurantes...
-              </Text>
+              <View style={indexStyles.loadingContainer}>
+                <LoadingSpinner 
+                  size="large" 
+                  text="Carregando restaurantes..."
+                  color={colors.verdeFolha}
+                />
             </View>
           ) : error ? (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-              <Text style={{ color: '#E11D48', textAlign: 'center' }}>
+              <View style={indexStyles.errorContainer}>
+                <MaterialIcons name="error-outline" size={48} color={colors.vermelhoErro} />
+                <Text style={indexStyles.errorText}>
                 {error}
               </Text>
               <TouchableOpacity
                 onPress={carregarRestaurantes}
-                style={{
-                  backgroundColor: colors.marromFeijao,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                  marginTop: 8
-                }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Tentar novamente</Text>
+                  style={indexStyles.retryButton}
+                >
+                  <Text style={indexStyles.retryButtonText}>Tentar novamente</Text>
               </TouchableOpacity>
             </View>
           ) : filteredCards.length > 0 ? (
             <HorizontalCardCarousel
               cards={filteredCards as any}
               onCardClick={handleCardClick}
+                title="Restaurantes encontrados"
             />
           ) : (
-            <Text style={{ color: colors.preto, opacity: 0.8 }}>Nenhum restaurante encontrado.</Text>
+              <View style={indexStyles.emptyStateContainer}>
+                <MaterialIcons name="search-off" size={48} color={colors.cinzaClaro} />
+                <Text style={indexStyles.emptyStateText}>
+                  Nenhum restaurante encontrado com esses critérios.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSearchQuery('');
+                    clearLocationFilter();
+                  }}
+                  style={indexStyles.retryButton}
+                >
+                  <Text style={indexStyles.retryButtonText}>Limpar filtros</Text>
+                </TouchableOpacity>
+              </View>
           )}
         </View>
+        ) : null}
 
-        {/* Carrossel de Cards - Todos os Restaurantes */}
+        {/* Todos os Restaurantes */}
         <View style={indexStyles.carouselSection}>
           <Text style={indexStyles.carouselTitle}>
             {restaurantes.length > 0 ? 'Nossos Restaurantes' : 'Melhores Avaliados'}
           </Text>
           {loading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-              <ActivityIndicator size="large" color={colors.marromFeijao} />
+            <View style={indexStyles.loadingContainer}>
+              <LoadingSpinner 
+                size="large" 
+                text="Carregando restaurantes..."
+                color={colors.verdeFolha}
+              />
             </View>
+          ) : error ? (
+            <>
+              {/* Mostrar dados locais mesmo com erro */}
+              <HorizontalCardCarousel 
+                cards={cardData as any}
+                onCardClick={handleCardClick}
+                title="Melhores Avaliados"
+              />
+              {/* Mostrar aviso discreto sobre o erro */}
+              <View style={indexStyles.errorContainer}>
+                <MaterialIcons name="info" size={24} color={colors.azulInfo} />
+                <Text style={[indexStyles.errorText, { color: colors.azulInfo, fontSize: 14 }]}>
+                  Usando dados locais. Alguns restaurantes podem não estar disponíveis.
+                </Text>
+                <TouchableOpacity
+                  onPress={carregarRestaurantes}
+                  style={[indexStyles.retryButton, { backgroundColor: colors.azulInfo }]}
+                >
+                  <Text style={indexStyles.retryButtonText}>Tentar novamente</Text>
+                </TouchableOpacity>
+            </View>
+            </>
           ) : (
             <HorizontalCardCarousel 
-              cards={todosOsCards as any}
+              cards={cardsParaExibir as any}
               onCardClick={handleCardClick}
+              title="Todos os restaurantes"
             />
           )}
         </View>
       
         {/* Seção Institucional */}
-        <View style={{ marginTop: 48, alignItems: 'center', paddingHorizontal: 12 }}>
-          <Text style={[indexStyles.carouselTitle, { fontSize: 22 }]}>Sobre o Saborê</Text>
-          <Text style={{ color: colors.preto, fontSize: 16, textAlign: 'center', maxWidth: 600, marginBottom: 24 }}>
+        <View style={indexStyles.aboutSection}>
+          <Text style={indexStyles.aboutTitle}>Sobre o Saborê</Text>
+          <Text style={indexStyles.aboutText}>
             O Saborê nasceu para conectar apaixonados por sabor especial aos melhores restaurantes e experiências gastronômicas. Nossa missão é facilitar o acesso, promover a cultura e valorizar os estabelecimentos que fazem do Brasil um sabor inesquecível.
           </Text>
         </View>
 
-        {/* Mapa do Site */}
-        <View style={{ marginTop: 16, marginBottom: 32, alignItems: 'center' }}>
-          <Text style={indexStyles.subtitle}>Mapa do Site</Text>
-          <Text style={indexStyles.textSmall}>• Home</Text>
-          <Text style={indexStyles.textSmall}>• Login</Text>
-          <Text style={indexStyles.textSmall}>• Cadastro</Text>
-          <Text
-            style={indexStyles.textLink}
-            onPress={() => router.push('/indexEmpresas')}
-          >
-            • Empresas
-          </Text>
-          <Text style={indexStyles.textSmall}>• Contato</Text>
+                {/* Footer */}
+        <View style={indexStyles.footerContainer}>
+          <View style={indexStyles.footerContent}>
+            <View style={indexStyles.footerSection}>
+              <Text style={indexStyles.footerTitle}>Saborê</Text>
+              <Text style={indexStyles.footerDescription}>
+                Conectando você aos melhores sabores do Brasil. Descubra restaurantes incríveis e faça pedidos deliciosos.
+              </Text>
+            </View>
+            
+            <View style={indexStyles.footerSection}>
+              <Text style={indexStyles.footerSubtitle}>Navegação</Text>
+              <TouchableOpacity onPress={() => router.push('/')}>
+                <Text style={indexStyles.footerLink}>• Página Inicial</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/login')}>
+                <Text style={indexStyles.footerLink}>• Fazer Login</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/cadastro')}>
+                <Text style={indexStyles.footerLink}>• Criar Conta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/carrinho')}>
+                <Text style={indexStyles.footerLink}>• Meu Carrinho</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={indexStyles.footerSection}>
+              <Text style={indexStyles.footerSubtitle}>Empresas</Text>
+              <TouchableOpacity onPress={() => router.push('/indexEmpresas')}>
+                <Text style={indexStyles.footerLink}>• Área Empresarial</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/loginEmpresas')}>
+                <Text style={indexStyles.footerLink}>• Login Empresas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/cadastrarEmpresa')}>
+                <Text style={indexStyles.footerLink}>• Cadastrar Empresa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <View style={indexStyles.footerBottom}>
+            <Text style={indexStyles.footerCopyright}>
+              © 2024 Saborê - Todos os direitos reservados | Desenvolvido com ❤️ no Brasil
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </View>

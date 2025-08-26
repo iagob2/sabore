@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Text, View, TouchableOpacity, Image, Animated, Easing, Platform, useWindowDimensions, StyleSheet } from 'react-native';
+import { Text, View, TouchableOpacity, Image, Animated, Easing, Platform, useWindowDimensions, StyleSheet, StatusBar } from 'react-native';
 import { headerStyles } from '../style/headerStyles';
 import { useRouter, usePathname } from 'expo-router';
 import { colors } from '../style/colors';
@@ -189,6 +189,15 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 
   return (
     <>
+      {/* StatusBar para mobile */}
+      {Platform.OS !== 'web' && (
+        <StatusBar 
+          barStyle="dark-content" 
+          backgroundColor={colors.branco}
+          translucent={false}
+        />
+      )}
+      
       {/* Banner de toast no topo (web) */}
       {Platform.OS === 'web' && toastVisible && toastMsg && (
         <View style={{
@@ -218,23 +227,28 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
       <View style={headerStyles.header}>
         <TouchableOpacity onPress={handleSpinAndNavigate} style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
         <Animated.View style={{
-          width: 56,
-          height: 56,
-          borderRadius: 28,
+          width: isSmallScreen ? 32 : 56,
+          height: isSmallScreen ? 32 : 56,
+          borderRadius: isSmallScreen ? 16 : 28,
           borderWidth: 2,
-          borderColor: colors.marromFeijao, // era #650C0C
-          backgroundColor: colors.branco, // era #F5F5F3
+          borderColor: colors.marromFeijao,
+          backgroundColor: colors.branco,
           alignItems: 'center',
           justifyContent: 'center',
           transform: [{ rotateY: spin }],
         }}>
-          <Image source={logoApp} style={{ width: 48, height: 48, borderRadius: 24, resizeMode: 'contain' }} />
+          <Image source={logoApp} style={{ 
+            width: isSmallScreen ? 24 : 48, 
+            height: isSmallScreen ? 24 : 48, 
+            borderRadius: isSmallScreen ? 12 : 24, 
+            resizeMode: 'contain' 
+          }} />
         </Animated.View>
         <Text style={{
-          color: colors.verdeFolha, // era #650C0C
+          color: colors.verdeFolha,
           fontWeight: 'bold',
-          fontSize: 24,
-          marginLeft: 12,
+          fontSize: isSmallScreen ? 16 : 24,
+          marginLeft: isSmallScreen ? 6 : 12,
           letterSpacing: 1,
         }}>Saborê</Text>
         </TouchableOpacity>

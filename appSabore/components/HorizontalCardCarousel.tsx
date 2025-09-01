@@ -1,8 +1,10 @@
 
-import React from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import Card from './Card';
+import { colors } from '../style/colors';
+import { MaterialIcons } from '@expo/vector-icons';
 
 interface CardData {
   id: string;
@@ -10,56 +12,156 @@ interface CardData {
   name: string;
   rating: number;
   subtitle?: string;
+  // Novas propriedades para melhorar a experiência
+  deliveryTime?: string;
+  deliveryFee?: string;
+  distance?: string;
+  isNew?: boolean;
+  hasPromotion?: boolean;
+  isFavorite?: boolean;
 }
 
 interface HorizontalCardCarouselProps {
   cards: CardData[];
   onCardClick?: (id: string) => void;
+  title?: string;
+  showFavorites?: boolean;
 }
 
 const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
   cards,
-  onCardClick
+  onCardClick,
+  title,
+  showFavorites = false
 }) => {
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.min(320, Math.max(260, Math.floor(screenWidth * 0.8)));
-  const sideMargin = screenWidth < 360 ? 6 : 8;
+  const sideMargin = screenWidth < 360 ? 8 : 12;
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const handleCardClick = (id: string) => {
     if (onCardClick) onCardClick(id);
     router.push(`/perfilEmpresa?id=${id}`);
   };
 
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ 
+  const handleFavoritePress = (id: string) => {
+    const newFavorites = new Set(favorites);
+    if (newFavorites.has(id)) {
+      newFavorites.delete(id);
+    } else {
+      newFavorites.add(id);
+    }
+    setFavorites(newFavorites);
+  };
+
+  // Filtrar cards se showFavorites estiver ativo
+  const displayCards = showFavorites 
+    ? cards.filter(card => favorites.has(card.id))
+    : cards;
+
+  if (displayCards.length === 0) {
+    return (
+      <View style={{ 
         alignItems: 'center', 
-        paddingHorizontal: 0,
-        justifyContent: 'center',
-        flexGrow: 1
-      }}
-      style={{ width: '100%' }}
-    >
-      {cards.map((card) => (
-        <View key={card.id} style={{ 
-          width: cardWidth, 
-          marginHorizontal: sideMargin,
-          alignItems: 'center',
+        paddingVertical: 40,
+        paddingHorizontal: 20 
+      }}>
+        <MaterialIcons 
+          name={showFavorites ? "favorite-border" : "restaurant"} 
+          size={48} 
+          color={colors.cinzaClaro} 
+        />
+        <Text style={{ 
+          color: colors.cinzaMedio, 
+          fontSize: 16, 
+          marginTop: 16,
+          textAlign: 'center' 
         }}>
-          <Card
-            id={card.id}
-            imageUrl={card.imageUrl}
-            name={card.name}
-            rating={card.rating}
-            subtitle={card.subtitle}
-            onCardClick={handleCardClick}
-          />
+          {showFavorites 
+            ? "Nenhum restaurante favoritado ainda" 
+            : "Nenhum restaurante encontrado"
+          }
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: '100%' }}>
+      {title && (
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          paddingHorizontal: 16
+        }}>
+          <Text style={{ 
+            color: colors.verdeFolha, 
+            fontSize: 20, 
+            fontWeight: '600' 
+          }}>
+            {title}
+          </Text>
+          {showFavorites && favorites.size > 0 && (
+            <View style={{
+              backgroundColor: colors.rosaPromocao,
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 12,
+            }}>
+              <Text style={{ 
+                color: colors.branco, 
+                fontSize: 12, 
+                fontWeight: '600' 
+              }}>
+                {favorites.size} favorito{favorites.size !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
         </View>
-      ))}
-    </ScrollView>
+      )}
+      
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ 
+          alignItems: 'center', 
+          paddingHorizontal: 16,
+          justifyContent: 'flex-start',
+          paddingBottom: 8
+        }}
+        style={{ width: '100%' }}
+        decelerationRate="fast"
+        snapToInterval={cardWidth + (sideMargin * 2)}
+        snapToAlignment="center"
+      >
+        {displayCards.map((card) => (
+          <View key={card.id} style={{ 
+            width: cardWidth, 
+            marginHorizontal: sideMargin,
+            alignItems: 'center',
+          }}>
+            <Card
+              id={card.id}
+              imageUrl={card.imageUrl}
+              name={card.name}
+              rating={card.rating}
+              subtitle={card.subtitle}
+              deliveryTime={card.deliveryTime}
+              deliveryFee={card.deliveryFee}
+              distance={card.distance}
+              isNew={card.isNew}
+              hasPromotion={card.hasPromotion}
+              isFavorite={favorites.has(card.id)}
+              onCardClick={handleCardClick}
+              onFavoritePress={handleFavoritePress}
+            />
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 };
 

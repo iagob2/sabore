@@ -15,6 +15,7 @@ import {
   calcularValorTotal 
 } from '../api/pedido';
 import { toast } from '../hooks/use-toast';
+import ModalAvaliacaoPrato from '../components/ModalAvaliacaoPrato';
 
 const Pedidos = () => {
   const router = useRouter();
@@ -26,6 +27,15 @@ const Pedidos = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
+  
+  // Estados para modal de avaliação
+  const [modalAvaliacaoVisible, setModalAvaliacaoVisible] = useState(false);
+  const [pratoSelecionado, setPratoSelecionado] = useState<{
+    id: number;
+    nome: string;
+    preco: number;
+    imagemUrl?: string;
+  } | null>(null);
 
   // Carregar pedidos quando o componente montar
   useEffect(() => {
@@ -130,6 +140,31 @@ const Pedidos = () => {
     } finally {
       setUpdatingStatus(null);
     }
+  };
+
+  // Função para abrir modal de avaliação
+  const abrirModalAvaliacao = (item: any) => {
+    setPratoSelecionado({
+      id: item.itemRestaurante.id,
+      nome: item.itemRestaurante.nome,
+      preco: item.itemRestaurante.preco,
+      imagemUrl: item.itemRestaurante.imagemUrl
+    });
+    setModalAvaliacaoVisible(true);
+  };
+
+  // Função para fechar modal de avaliação
+  const fecharModalAvaliacao = () => {
+    setModalAvaliacaoVisible(false);
+    setPratoSelecionado(null);
+  };
+
+  // Função chamada após sucesso na avaliação
+  const onAvaliacaoSuccess = () => {
+    toast({
+      title: "Avaliação Enviada!",
+      description: "Obrigado por avaliar este prato. Sua opinião é muito importante!",
+    });
   };
 
   // Renderizar se não estiver autenticado
@@ -275,6 +310,20 @@ const Pedidos = () => {
                           )}
                         </View>
                       )}
+
+                      {/* Botão de Avaliação (apenas para pedidos concluídos) */}
+                      {pedido.status === 'CONCLUIDO' && (
+                        <View style={styles.avaliacaoContainer}>
+                          <TouchableOpacity
+                            style={[styles.botaoAvaliar, { backgroundColor: colors.amareloOuro }]}
+                            onPress={() => abrirModalAvaliacao(item)}
+                          >
+                            <Text style={[styles.textoBotaoAvaliar, { color: colors.branco }]}>
+                              ⭐ Avaliar Prato
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -320,6 +369,16 @@ const Pedidos = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* Modal de Avaliação de Prato */}
+      {pratoSelecionado && (
+        <ModalAvaliacaoPrato
+          visible={modalAvaliacaoVisible}
+          onClose={fecharModalAvaliacao}
+          onSuccess={onAvaliacaoSuccess}
+          prato={pratoSelecionado}
+        />
+      )}
     </View>
   );
 };
@@ -511,6 +570,21 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  avaliacaoContainer: {
+    marginTop: 8,
+    alignItems: 'flex-start',
+  },
+  botaoAvaliar: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textoBotaoAvaliar: {
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });

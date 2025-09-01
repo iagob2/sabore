@@ -10,9 +10,11 @@ interface CardPratoProps {
   valor: string;
   avaliacao: number;
   onPress?: () => void;
+  onPressAvaliacoes?: () => void;
+  itemId?: number;
 }
 
-const CardPrato: React.FC<CardPratoProps> = ({ imagem, nome, ingredientes, valor, avaliacao, onPress }) => {
+const CardPrato: React.FC<CardPratoProps> = ({ imagem, nome, ingredientes, valor, avaliacao, onPress, onPressAvaliacoes }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   // Props para hover apenas no web
@@ -37,7 +39,11 @@ const CardPrato: React.FC<CardPratoProps> = ({ imagem, nome, ingredientes, valor
         <Text style={styles.ingredientes} numberOfLines={2}>{ingredientes}</Text>
         <View style={styles.row}>
           <Text style={styles.valor}>{valor}</Text>
-          <StarRating rating={avaliacao} size={16} />
+          <StarRating 
+            rating={avaliacao} 
+            size={16} 
+            onPress={onPressAvaliacoes}
+          />
         </View>
       </View>
       <View style={[styles.borderGlow, isHovered && styles.borderGlowHovered]} />

@@ -779,6 +779,19 @@ const PerfilEmpresa = () => {
     fecharModalAvaliacao();
   }
 
+  // Função para navegar para a tela de avaliações de um prato
+  function verAvaliacoesPrato(prato: any) {
+    console.log('📊 Navegando para avaliações do prato:', prato.nome);
+    router.push({
+      pathname: '/avaliacoesPrato',
+      params: {
+        itemId: prato.id || prato._debug?.originalItem?.id,
+        itemNome: prato.nome,
+        itemPreco: prato.preco || prato.price
+      }
+    });
+  }
+
   function abrirCardapio() {
     console.log('🍽️ Abrindo cardápio - URL:', empresaCompleta?.cardapioUrl);
     if (empresaCompleta?.cardapioUrl && empresaCompleta.cardapioUrl !== '#') {
@@ -1326,7 +1339,12 @@ const PerfilEmpresa = () => {
                           {pratosQuentesExibir.map((prato, idx) => {
                             console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, prato);
                             return (
-                              <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                              <CardPrato 
+                                key={prato.nome + idx} 
+                                {...prato} 
+                                onPress={() => abrirModal(prato)}
+                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                              />
                             );
                           })}
                         </ScrollView>
@@ -1348,7 +1366,12 @@ const PerfilEmpresa = () => {
                           style={{ marginBottom: 18, width: '100%' }}
                         >
                           {pratosFriosExibir.map((prato, idx) => (
-                            <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                            <CardPrato 
+                              key={prato.nome + idx} 
+                              {...prato} 
+                              onPress={() => abrirModal(prato)}
+                              onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                            />
                           ))}
                         </ScrollView>
                       </View>
@@ -1369,7 +1392,12 @@ const PerfilEmpresa = () => {
                           style={{ marginBottom: 18, width: '100%' }}
                         >
                           {pratosFavoritosExibir.map((prato, idx) => (
-                            <CardPrato key={prato.nome + idx} {...prato} onPress={() => abrirModal(prato)} />
+                            <CardPrato 
+                              key={prato.nome + idx} 
+                              {...prato} 
+                              onPress={() => abrirModal(prato)}
+                              onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                            />
                           ))}
                         </ScrollView>
                       </View>

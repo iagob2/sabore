@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, Image, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import Header from '../components/Header';
 import { indexStyles } from '../style/indexStyles';
@@ -16,6 +16,7 @@ import {
 } from '../api/pedido';
 import { toast } from '../hooks/use-toast';
 import ModalAvaliacaoPrato from '../components/ModalAvaliacaoPrato';
+import ModalAvaliacaoRestaurante from '../components/ModalAvaliacaoRestaurante';
 
 const Pedidos = () => {
   const router = useRouter();
@@ -28,7 +29,7 @@ const Pedidos = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
   
-  // Estados para modal de avaliação
+  // Estados para modal de avaliação de prato
   const [modalAvaliacaoVisible, setModalAvaliacaoVisible] = useState(false);
   const [pratoSelecionado, setPratoSelecionado] = useState<{
     id: number;
@@ -36,6 +37,18 @@ const Pedidos = () => {
     preco: number;
     imagemUrl?: string;
   } | null>(null);
+  
+  // Estados para modal de avaliação de restaurante
+  const [modalAvaliacaoRestauranteVisible, setModalAvaliacaoRestauranteVisible] = useState(false);
+  const [restauranteSelecionado, setRestauranteSelecionado] = useState<{
+    id: number;
+    nome: string;
+    logoUrl?: string;
+    descricao?: string;
+  } | null>(null);
+  
+  // Estado para modal de confirmação de avaliação do restaurante
+  const [modalConfirmacaoRestauranteVisible, setModalConfirmacaoRestauranteVisible] = useState(false);
 
   // Carregar pedidos quando o componente montar
   useEffect(() => {
@@ -153,17 +166,88 @@ const Pedidos = () => {
     setModalAvaliacaoVisible(true);
   };
 
-  // Função para fechar modal de avaliação
+  // Função para fechar modal de avaliação de prato
   const fecharModalAvaliacao = () => {
     setModalAvaliacaoVisible(false);
     setPratoSelecionado(null);
   };
 
-  // Função chamada após sucesso na avaliação
-  const onAvaliacaoSuccess = () => {
+  // Função para fechar modal de avaliação de restaurante
+  const fecharModalAvaliacaoRestaurante = () => {
+    setModalAvaliacaoRestauranteVisible(false);
+    setRestauranteSelecionado(null);
+  };
+
+  // Função para fechar modal de confirmação
+  const fecharModalConfirmacaoRestaurante = () => {
+    setModalConfirmacaoRestauranteVisible(false);
+  };
+
+  // Função chamada após sucesso na avaliação de prato
+  const onAvaliacaoPratoSuccess = () => {
+    console.log('🎉 === SUCESSO NA AVALIAÇÃO DO PRATO ===');
+    console.log('🍽️ Prato selecionado:', pratoSelecionado);
+    console.log('📋 Total de pedidos disponíveis:', pedidos.length);
+    
     toast({
-      title: "Avaliação Enviada!",
+      title: "Avaliação do Prato Enviada!",
       description: "Obrigado por avaliar este prato. Sua opinião é muito importante!",
+    });
+    
+    // Após avaliar o prato, perguntar se quer avaliar o restaurante
+    if (pratoSelecionado) {
+      console.log('🔍 Buscando pedido que contém o prato ID:', pratoSelecionado.id);
+      
+      // Buscar o pedido que contém este prato para obter dados do restaurante
+      const pedidoComPrato = pedidos.find(pedido => {
+        const temPrato = pedido.itens.some(item => item.itemRestaurante.id === pratoSelecionado.id);
+        console.log(`📦 Pedido ${pedido.id} tem o prato?`, temPrato);
+        return temPrato;
+      });
+      
+      console.log('🏪 Pedido encontrado:', pedidoComPrato);
+      
+      if (pedidoComPrato) {
+        console.log('⏰ Agendando modal para avaliar restaurante em 1 segundo...');
+        setTimeout(() => {
+          console.log('🚨 Exibindo modal para avaliar restaurante');
+          // Preparar dados do restaurante
+          setRestauranteSelecionado({
+            id: pedidoComPrato.restaurante.id,
+            nome: pedidoComPrato.restaurante.nome,
+            logoUrl: undefined, // Não disponível na interface do pedido
+            descricao: undefined, // Não disponível na interface do pedido
+          });
+          // Mostrar modal de confirmação
+          setModalConfirmacaoRestauranteVisible(true);
+        }, 1000); // Delay de 1 segundo para o toast aparecer primeiro
+      } else {
+        console.log('❌ Nenhum pedido encontrado com o prato selecionado');
+      }
+    } else {
+      console.log('❌ Prato selecionado é null/undefined');
+    }
+  };
+
+  // Função para confirmar avaliação do restaurante
+  const confirmarAvaliacaoRestaurante = () => {
+    console.log('✅ Usuário escolheu avaliar o restaurante');
+    setModalConfirmacaoRestauranteVisible(false);
+    setModalAvaliacaoRestauranteVisible(true);
+  };
+
+  // Função para cancelar avaliação do restaurante
+  const cancelarAvaliacaoRestaurante = () => {
+    console.log('❌ Usuário cancelou avaliação do restaurante');
+    setModalConfirmacaoRestauranteVisible(false);
+    setRestauranteSelecionado(null);
+  };
+
+  // Função chamada após sucesso na avaliação de restaurante
+  const onAvaliacaoRestauranteSuccess = () => {
+    toast({
+      title: "Avaliação do Restaurante Enviada!",
+      description: "Obrigado por avaliar o restaurante. Sua opinião ajuda outros clientes!",
     });
   };
 
@@ -375,8 +459,113 @@ const Pedidos = () => {
         <ModalAvaliacaoPrato
           visible={modalAvaliacaoVisible}
           onClose={fecharModalAvaliacao}
-          onSuccess={onAvaliacaoSuccess}
+          onSuccess={onAvaliacaoPratoSuccess}
           prato={pratoSelecionado}
+        />
+      )}
+
+      {/* Modal de Confirmação para Avaliar Restaurante */}
+      <Modal
+        visible={modalConfirmacaoRestauranteVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={fecharModalConfirmacaoRestaurante}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}>
+          <View style={{
+            backgroundColor: colors.branco,
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 400,
+            shadowColor: colors.marromFeijao,
+            shadowOpacity: 0.25,
+            shadowRadius: 15,
+            elevation: 10,
+          }}>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: colors.verdeFolha,
+              textAlign: 'center',
+              marginBottom: 16,
+            }}>
+              ⭐ Avaliar Restaurante
+            </Text>
+            
+            <Text style={{
+              fontSize: 16,
+              color: colors.preto,
+              textAlign: 'center',
+              marginBottom: 24,
+              lineHeight: 22,
+            }}>
+              Gostaria de avaliar também o restaurante "{restauranteSelecionado?.nome}"?
+            </Text>
+            
+            <View style={{
+              flexDirection: 'row',
+              gap: 12,
+            }}>
+              <TouchableOpacity
+                onPress={cancelarAvaliacaoRestaurante}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.branco,
+                  borderWidth: 2,
+                  borderColor: colors.cinzaMedio,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  color: colors.cinzaEscuro,
+                }}>
+                  Não, obrigado
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={confirmarAvaliacaoRestaurante}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.verdeFolha,
+                  borderWidth: 2,
+                  borderColor: colors.verdeFolha,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  color: colors.branco,
+                }}>
+                  Sim, avaliar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Avaliação de Restaurante */}
+      {restauranteSelecionado && (
+        <ModalAvaliacaoRestaurante
+          visible={modalAvaliacaoRestauranteVisible}
+          onClose={fecharModalAvaliacaoRestaurante}
+          onSuccess={onAvaliacaoRestauranteSuccess}
+          restaurante={restauranteSelecionado}
         />
       )}
     </View>

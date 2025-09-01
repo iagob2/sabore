@@ -1071,24 +1071,6 @@ const PerfilUsuario = () => {
           <TouchableOpacity onPress={handleEditProfile} style={perfilUsuarioStyles.editButton}>
             <Text style={perfilUsuarioStyles.editButtonText}>Editar Perfil</Text>
           </TouchableOpacity>
-          
-          {/* Botão de teste temporário para debug */}
-          <TouchableOpacity 
-            onPress={async () => {
-              console.log('🧪 === TESTE MANUAL DE AVALIAÇÕES ===');
-              try {
-                const avaliacoes = await buscarAvaliacoesCliente();
-                console.log('🧪 Resultado do teste:', avaliacoes);
-                Alert.alert('Teste', `Encontradas ${avaliacoes.length} avaliações`);
-              } catch (error) {
-                console.error('🧪 Erro no teste:', error);
-                Alert.alert('Erro', error instanceof Error ? error.message : 'Erro desconhecido');
-              }
-            }}
-            style={[perfilUsuarioStyles.editButton, { backgroundColor: colors.amareloOuro, marginTop: 8 }]}
-          >
-            <Text style={perfilUsuarioStyles.editButtonText}>🧪 Testar Avaliações</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Seção Refazer Último Pedido */}

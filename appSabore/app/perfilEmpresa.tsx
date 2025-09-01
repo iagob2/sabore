@@ -10,6 +10,8 @@ import StarRating from '../components/StarRating';
 import { colors } from '../style/colors';
 import { buscarRestaurante, RestauranteResponse, API_BASE_URL } from '../api/restaurante';
 import { buscarItensPorRestaurante, ItemRestauranteResponse } from '../api/itemRestaurante';
+import { buscarAvaliacoesPrato, calcularMediaAvaliacoes, AvaliacaoPratoResponse } from '../api/avaliacaoPrato';
+import { buscarAvaliacoesRestaurante, calcularMediaAvaliacoesRestaurante } from '../api/avaliacaoRestaurante';
 import { toast } from '../hooks/use-toast';
 import { useCart, generateCartId, CartItem } from '../contexts/CartContext';
 import { useAuthSession } from '../contexts/AuthContext';
@@ -343,6 +345,14 @@ const PerfilEmpresa = () => {
   const [itensRestaurante, setItensRestaurante] = useState<ItemRestauranteResponse[]>([]);
   const [loadingItens, setLoadingItens] = useState(false);
   
+  // Estado para médias de avaliações por item
+  const [mediasAvaliacoes, setMediasAvaliacoes] = useState<Record<number, number>>({});
+  const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
+  
+  // Estado para média de avaliações do restaurante
+  const [mediaAvaliacaoRestaurante, setMediaAvaliacaoRestaurante] = useState<number>(0);
+  const [loadingAvaliacaoRestaurante, setLoadingAvaliacaoRestaurante] = useState(false);
+  
   // Estados do modal de pratos
   const [copied, setCopied] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -354,10 +364,7 @@ const PerfilEmpresa = () => {
   // Usar contexto do carrinho
   const { addItem: addToCart, itemCount: cartItemCount, canAddItem } = useCart();
   const { session, isAuthenticated } = useAuthSession();
-  const [modalAvaliacaoVisible, setModalAvaliacaoVisible] = useState(false);
-  const [avaliacaoUsuario, setAvaliacaoUsuario] = useState(0);
-  const [observacaoUsuario, setObservacaoUsuario] = useState('');
-  const [estrelasPressionadas, setEstrelasPressionadas] = useState(false);
+
   const [modalCardapioVisible, setModalCardapioVisible] = useState(false);
 
   // Função para adaptar item da API para formato do CardPrato
@@ -469,6 +476,9 @@ const PerfilEmpresa = () => {
       ingredientesString: ingredientes.join(', ')
     });
     
+    // Buscar a média de avaliações para este item
+    const mediaAvaliacao = mediasAvaliacoes[item.id] || 0;
+    
     const adaptado = {
       // Propriedades que o CardPrato espera (formato correto)
       imagem: imageSource,
@@ -476,7 +486,7 @@ const PerfilEmpresa = () => {
       nome: item.nome || 'Prato sem nome',
       ingredientes: ingredientes.join(', '), // CardPrato espera string, não array
       valor: valorFormatado,
-      avaliacao: 4.5,
+      avaliacao: mediaAvaliacao,
       
       // Propriedades extras para compatibilidade com outros componentes
       id: item.id.toString(),
@@ -489,7 +499,7 @@ const PerfilEmpresa = () => {
       available: true,
       ingredients: ingredientes, // Array para outros componentes
       prepTime: 20,
-      rating: 4.5,
+      rating: mediaAvaliacao,
       
       _debug: {
         originalItem: item,
@@ -506,6 +516,8 @@ const PerfilEmpresa = () => {
       nome: adaptado.nome,
       valor: adaptado.valor,
       ingredientes: adaptado.ingredientes,
+      avaliacao: adaptado.avaliacao,
+      mediaAvaliacao: mediaAvaliacao,
       imagemTipo: typeof adaptado.imagem,
       imagemUri: adaptado.imagem?.uri || 'local',
       imagemFallback: typeof adaptado.imagemFallback
@@ -515,6 +527,63 @@ const PerfilEmpresa = () => {
   };
 
 
+
+  // Função para carregar avaliações de todos os itens
+  const carregarAvaliacoesItens = async (itens: ItemRestauranteResponse[]) => {
+    console.log('⭐ === CARREGANDO AVALIAÇÕES DOS ITENS ===');
+    console.log('📊 Total de itens para buscar avaliações:', itens.length);
+    
+    setLoadingAvaliacoes(true);
+    const medias: Record<number, number> = {};
+    
+    // Buscar avaliações para cada item em paralelo
+    const promises = itens.map(async (item) => {
+      try {
+        console.log(`🔍 Buscando avaliações para item ${item.id}: ${item.nome}`);
+        const avaliacoes = await buscarAvaliacoesPrato(item.id);
+        const media = calcularMediaAvaliacoes(avaliacoes);
+        
+        console.log(`⭐ Item ${item.id} (${item.nome}): ${avaliacoes.length} avaliações, média: ${media}`);
+        
+        medias[item.id] = media;
+      } catch (error) {
+        console.warn(`⚠️ Erro ao buscar avaliações do item ${item.id}:`, error);
+        // Se houver erro, usar média 0 (sem avaliações)
+        medias[item.id] = 0;
+      }
+    });
+    
+    // Aguardar todas as buscas terminarem
+    await Promise.all(promises);
+    
+    console.log('✅ Médias de avaliações calculadas:', medias);
+    setMediasAvaliacoes(medias);
+    setLoadingAvaliacoes(false);
+  };
+
+  // Função para carregar avaliações do restaurante
+  const carregarAvaliacoesRestaurante = async (restauranteId: number) => {
+    console.log('🏪 === CARREGANDO AVALIAÇÕES DO RESTAURANTE ===');
+    console.log('🆔 Restaurante ID:', restauranteId);
+    
+    setLoadingAvaliacaoRestaurante(true);
+    
+    try {
+      console.log(`🔍 Buscando avaliações para restaurante ${restauranteId}`);
+      const avaliacoes = await buscarAvaliacoesRestaurante(restauranteId);
+      const media = calcularMediaAvaliacoesRestaurante(avaliacoes);
+      
+      console.log(`🏪 Restaurante ${restauranteId}: ${avaliacoes.length} avaliações, média: ${media}`);
+      
+      setMediaAvaliacaoRestaurante(media);
+    } catch (error) {
+      console.warn(`⚠️ Erro ao buscar avaliações do restaurante ${restauranteId}:`, error);
+      // Se houver erro, usar média 0 (sem avaliações)
+      setMediaAvaliacaoRestaurante(0);
+    } finally {
+      setLoadingAvaliacaoRestaurante(false);
+    }
+  };
 
   // Função para carregar itens do restaurante
   const carregarItensRestaurante = async (restauranteId: number) => {
@@ -560,6 +629,11 @@ const PerfilEmpresa = () => {
       }
       
       setItensRestaurante(itens || []);
+      
+      // Carregar avaliações dos itens após carregar os itens
+      if (itens && itens.length > 0) {
+        await carregarAvaliacoesItens(itens);
+      }
     } catch (err) {
       console.error('❌ ERRO ao carregar itens do restaurante:', err);
       console.error('🔍 Detalhes do erro:', {
@@ -605,8 +679,11 @@ const PerfilEmpresa = () => {
 
       setEmpresa(restaurante);
 
-      // Carregar itens do restaurante após carregar os dados
-      await carregarItensRestaurante(restaurante.id);
+      // Carregar itens do restaurante e avaliações após carregar os dados
+      await Promise.all([
+        carregarItensRestaurante(restaurante.id),
+        carregarAvaliacoesRestaurante(restaurante.id)
+      ]);
 
     } catch (err) {
       console.error('❌ Erro ao carregar dados do restaurante:', err);
@@ -765,19 +842,7 @@ const PerfilEmpresa = () => {
     }
   }
 
-  function abrirModalAvaliacao() {
-    setModalAvaliacaoVisible(true);
-  }
-  function fecharModalAvaliacao() {
-    setModalAvaliacaoVisible(false);
-    setAvaliacaoUsuario(0);
-    setObservacaoUsuario('');
-  }
-  function enviarAvaliacao() {
-    // Aqui você pode enviar para API ou processar a avaliação
-    console.log('Avaliação enviada:', avaliacaoUsuario, observacaoUsuario);
-    fecharModalAvaliacao();
-  }
+
 
   // Função para navegar para a tela de avaliações de um prato
   function verAvaliacoesPrato(prato: any) {
@@ -903,6 +968,8 @@ const PerfilEmpresa = () => {
   // Processar pratos do banco de dados
   console.log('🔄 === PROCESSANDO PRATOS PARA EXIBIÇÃO ===');
   console.log('📦 Itens do restaurante disponíveis:', itensRestaurante.length);
+  console.log('⭐ Médias de avaliações disponíveis:', Object.keys(mediasAvaliacoes).length);
+  console.log('⭐ Médias carregadas:', mediasAvaliacoes);
   
   const pratosAdaptados = itensRestaurante.map((item, index) => {
     console.log(`🔄 Adaptando item ${index + 1}:`, item);
@@ -1048,9 +1115,7 @@ const PerfilEmpresa = () => {
             pointerEvents="none"
           />
           {/* Estrelinhas de avaliação no limite inferior do banner */}
-          <TouchableOpacity
-            onPress={abrirModalAvaliacao}
-            activeOpacity={0.8}
+          <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -1064,11 +1129,15 @@ const PerfilEmpresa = () => {
               zIndex: 10,
             }}
           >
-            <StarRating rating={empresaCompleta.avaliacao} size={isSmallScreen ? 18 : 22} />
+            <StarRating 
+              rating={mediaAvaliacaoRestaurante} 
+              size={isSmallScreen ? 18 : 22} 
+              interactive={false}
+            />
             <Text style={{ color: colors.amareloOuro, fontWeight: 'bold', fontSize: isSmallScreen ? 16 : 18, marginLeft: 10 }}>
-              {empresaCompleta.avaliacao.toFixed(1)}
+              {mediaAvaliacaoRestaurante.toFixed(1)}
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
                         {/* Logo, descrição, informações e links sociais em container flexível */}
         <View style={perfilEmpresaStyles.mainContentContainer}>
@@ -1246,8 +1315,8 @@ const PerfilEmpresa = () => {
                 justifyContent: 'center',
                 display: 'flex',
               }}>
-                {loadingItens ? (
-                  // Estado de loading dos pratos
+                {loadingItens || loadingAvaliacoes ? (
+                  // Estado de loading dos pratos e avaliações
                   <View style={{ 
                     width: '100%', 
                     alignItems: 'center', 
@@ -1262,7 +1331,7 @@ const PerfilEmpresa = () => {
                       marginTop: 16, 
                       textAlign: 'center' 
                     }}>
-                      Carregando pratos do restaurante...
+                      {loadingItens ? 'Carregando pratos do restaurante...' : 'Carregando avaliações dos pratos...'}
                     </Text>
                   </View>
                 ) : !temPratos ? (
@@ -1337,7 +1406,7 @@ const PerfilEmpresa = () => {
                           style={{ marginBottom: 18, width: '100%' }}
                         >
                           {pratosQuentesExibir.map((prato, idx) => {
-                            console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, prato);
+                            console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, 'Avaliação:', prato.avaliacao);
                             return (
                               <CardPrato 
                                 key={prato.nome + idx} 
@@ -1365,14 +1434,17 @@ const PerfilEmpresa = () => {
                           }} 
                           style={{ marginBottom: 18, width: '100%' }}
                         >
-                          {pratosFriosExibir.map((prato, idx) => (
-                            <CardPrato 
-                              key={prato.nome + idx} 
-                              {...prato} 
-                              onPress={() => abrirModal(prato)}
-                              onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                            />
-                          ))}
+                          {pratosFriosExibir.map((prato, idx) => {
+                            console.log(`🧊 Renderizando prato frio ${idx + 1}:`, prato.nome, 'Avaliação:', prato.avaliacao);
+                            return (
+                              <CardPrato 
+                                key={prato.nome + idx} 
+                                {...prato} 
+                                onPress={() => abrirModal(prato)}
+                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                              />
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     )}
@@ -1391,14 +1463,17 @@ const PerfilEmpresa = () => {
                           }} 
                           style={{ marginBottom: 18, width: '100%' }}
                         >
-                          {pratosFavoritosExibir.map((prato, idx) => (
-                            <CardPrato 
-                              key={prato.nome + idx} 
-                              {...prato} 
-                              onPress={() => abrirModal(prato)}
-                              onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                            />
-                          ))}
+                          {pratosFavoritosExibir.map((prato, idx) => {
+                            console.log(`⭐ Renderizando prato favorito ${idx + 1}:`, prato.nome, 'Avaliação:', prato.avaliacao);
+                            return (
+                              <CardPrato 
+                                key={prato.nome + idx} 
+                                {...prato} 
+                                onPress={() => abrirModal(prato)}
+                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                              />
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     )}
@@ -1706,47 +1781,7 @@ const PerfilEmpresa = () => {
         </View>
       </Modal>
 
-      <Modal
-        visible={modalAvaliacaoVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={fecharModalAvaliacao}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: colors.branco, borderRadius: 20, width: '100%', maxWidth: 400, alignItems: 'center', padding: 28, borderWidth: 2, borderColor: colors.verdeFolha, shadowColor: colors.marromFeijao, shadowOpacity: 0.18, shadowRadius: 12, elevation: 10 }}>
-            <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: 22, marginBottom: 18, textAlign: 'center', letterSpacing: 1 }}>Avalie este restaurante</Text>
-            <StarRating rating={avaliacaoUsuario} interactive onRatingChange={setAvaliacaoUsuario} size={32} />
-            <TextInput
-              style={{
-                width: '100%',
-                minHeight: 60,
-                backgroundColor: colors.branco,
-                color: colors.preto,
-                borderRadius: 10,
-                padding: 12,
-                marginTop: 18,
-                marginBottom: 18,
-                fontSize: 16,
-                borderWidth: 1.5,
-                borderColor: colors.verdeFolha
-              }}
-              placeholder="Deixe uma observação (opcional)"
-              placeholderTextColor={colors.preto + '88'}
-              multiline
-              value={observacaoUsuario}
-              onChangeText={setObservacaoUsuario}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
-              <TouchableOpacity onPress={fecharModalAvaliacao} style={{ padding: 12, borderRadius: 8, backgroundColor: colors.branco, marginRight: 10, flex: 1, borderWidth: 1.5, borderColor: colors.marromFeijao }}>
-                <Text style={{ color: colors.marromFeijao, textAlign: 'center', fontWeight: 'bold' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={enviarAvaliacao} style={{ padding: 12, borderRadius: 8, backgroundColor: colors.verdeFolha, flex: 1, borderWidth: 1.5, borderColor: colors.verdeFolha }} disabled={avaliacaoUsuario === 0}>
-                <Text style={{ color: colors.branco, textAlign: 'center', fontWeight: 'bold' }}>Enviar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+
     </View>
   );
 };

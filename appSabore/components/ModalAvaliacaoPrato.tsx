@@ -71,18 +71,16 @@ const ModalAvaliacaoPrato: React.FC<ModalAvaliacaoPratoProps> = ({
 
       await criarAvaliacaoPrato(avaliacaoData);
 
+      // Chamar onSuccess imediatamente após o sucesso
+      onSuccess?.();
+      
+      // Fechar modal
+      fecharModal();
+      
+      // Mostrar alert de sucesso (opcional)
       Alert.alert(
         'Sucesso!',
-        'Sua avaliação foi enviada com sucesso.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              fecharModal();
-              onSuccess?.();
-            }
-          }
-        ]
+        'Sua avaliação foi enviada com sucesso.'
       );
     } catch (error) {
       console.error('Erro ao enviar avaliação:', error);

@@ -49,6 +49,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const restauranteId = items.length > 0 ? items[0].restauranteId : null;
   const restauranteNome = items.length > 0 ? items[0].restauranteNome : null;
 
+  // Debug para acompanhar mudanças no carrinho
+  React.useEffect(() => {
+    console.log('🛒 === ESTADO DO CARRINHO ATUALIZADO ===');
+    console.log('📦 Total de itens únicos:', items.length);
+    console.log('🔢 Total de quantidade:', itemCount);
+    console.log('🏪 Restaurante:', restauranteNome);
+    console.log('🎯 Items:', items.map(item => ({ 
+      nome: item.nome, 
+      quantidade: item.quantidade,
+      cartId: item.cartId 
+    })));
+  }, [items, itemCount, restauranteNome]);
+
   // Verificar se pode adicionar item (mesmo restaurante)
   const canAddItem = useCallback((newRestauranteId: number): boolean => {
     if (items.length === 0) return true;
@@ -93,7 +106,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Remover item do carrinho
   const removeItem = useCallback((cartId: string) => {
     console.log('🗑️ Removendo item do carrinho:', cartId);
-    setItems(prevItems => prevItems.filter(item => item.cartId !== cartId));
+    setItems(prevItems => {
+      console.log('🔍 Itens antes da remoção:', prevItems.length);
+      const newItems = prevItems.filter(item => item.cartId !== cartId);
+      console.log('✅ Itens após remoção:', newItems.length);
+      console.log('🔍 Item removido?', prevItems.length !== newItems.length);
+      return newItems;
+    });
   }, []);
 
   // Atualizar quantidade
@@ -138,7 +157,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Limpar carrinho
   const clearCart = useCallback(() => {
     console.log('🗑️ Limpando carrinho completo');
-    setItems([]);
+    setItems(prevItems => {
+      console.log('🔍 Itens antes da limpeza:', prevItems.length);
+      console.log('✅ Carrinho limpo com sucesso');
+      return [];
+    });
   }, []);
 
   // Obter dados formatados para a API

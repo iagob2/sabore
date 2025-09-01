@@ -286,19 +286,19 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 									onPress={() => { setUserMenuOpen(false); router.push('/perfilUsuario'); }}
 									{...getBtnProps('/perfilUsuario', true)}
 								>
-									<Text style={[getBtnProps('/perfilUsuario', true).textStyle]}>Meu Perfil</Text>
+									<Text style={[getBtnProps('/perfilUsuario', true).textStyle]}>👤 Meu Perfil</Text>
 								</TouchableOpacity>
 								<TouchableOpacity
 									onPress={() => { setUserMenuOpen(false); router.push('/pedidos'); }}
 									{...getBtnProps('/pedidos', true)}
 								>
-									<Text style={[getBtnProps('/pedidos', true).textStyle]}>Meus Pedidos</Text>
+									<Text style={[getBtnProps('/pedidos', true).textStyle]}>📋 Meus Pedidos</Text>
 								</TouchableOpacity>
 								<TouchableOpacity
 									onPress={handleLogout}
 									{...getBtnProps('/logout', true)}
 								>
-									<Text style={[getBtnProps('/logout', true).textStyle]}>Sair</Text>
+									<Text style={[getBtnProps('/logout', true).textStyle]}>🚪 Sair</Text>
 								</TouchableOpacity>
 							</View>
 						)}
@@ -385,13 +385,13 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 				) : (
 					<>
 						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/perfilUsuario'); }} style={mobileStyles.mobileMenuItem}>
-							<Text style={mobileStyles.mobileMenuText}>Meu Perfil</Text>
+							<Text style={mobileStyles.mobileMenuText}>👤 Meu Perfil</Text>
 						</TouchableOpacity>
 						<TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/pedidos'); }} style={mobileStyles.mobileMenuItem}>
-							<Text style={mobileStyles.mobileMenuText}>Meus Pedidos</Text>
+							<Text style={mobileStyles.mobileMenuText}>📋 Meus Pedidos</Text>
 						</TouchableOpacity>
 						<TouchableOpacity onPress={() => { setMenuOpen(false); handleLogout(); }} style={mobileStyles.mobileMenuItem}>
-							<Text style={mobileStyles.mobileMenuText}>Sair</Text>
+							<Text style={mobileStyles.mobileMenuText}>🚪 Sair</Text>
 						</TouchableOpacity>
 					</>
 				)}

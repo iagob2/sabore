@@ -51,6 +51,18 @@ export interface EnderecoLookupResponse {
 export interface SessaoResponse {
   email: string;
   nome?: string;
+  id?: number;
+  telefone?: string;
+  cpf?: string;
+  cep?: string;
+  rua?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  numero?: string;
+  aceitaProtecaoDados?: boolean;
+  aceitaMarketing?: boolean;
+  aceitaAtendimento?: boolean;
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -131,13 +143,121 @@ export async function deletarCliente(id: number): Promise<void> {
   await request<void>(`/clientes/${id}`, { method: 'DELETE' });
 }
 
-// Sessão atual do usuário logado (depende do backend expor esse endpoint)
+// Sessão atual do usuário logado (retorna dados completos do cliente)
 export async function getSessao(): Promise<SessaoResponse> {
-  const data = await request<any>('/clientes/me');
-  return {
-    email: data.email ?? data.username ?? data.user?.email,
-    nome: data.nome ?? data.name ?? data.user?.nome,
-  } as SessaoResponse;
+  console.log('📡 === CHAMANDO API /clientes/me ===');
+  
+  try {
+    const data = await request<any>('/clientes/me');
+    console.log('📊 Dados brutos recebidos da API:', JSON.stringify(data, null, 2));
+    console.log('📊 Tipo dos dados:', typeof data);
+    console.log('📊 Chaves disponíveis:', Object.keys(data || {}));
+    
+    // Mapear dados dependendo da estrutura retornada pelo backend
+    const mapped = {
+      id: data.id ?? data.clienteId ?? data.cliente?.id,
+      email: data.email ?? data.username ?? data.user?.email ?? data.cliente?.email,
+      nome: data.nome ?? data.name ?? data.user?.nome ?? data.cliente?.nome,
+      telefone: data.telefone ?? data.cliente?.telefone,
+      cpf: data.cpf ?? data.cliente?.cpf,
+      cep: data.cep ?? data.cliente?.cep,
+      rua: data.rua ?? data.cliente?.rua ?? data.logradouro,
+      bairro: data.bairro ?? data.cliente?.bairro,
+      cidade: data.cidade ?? data.cliente?.cidade ?? data.localidade,
+      estado: data.estado ?? data.cliente?.estado ?? data.uf,
+      numero: data.numero ?? data.cliente?.numero,
+      aceitaProtecaoDados: data.aceitaProtecaoDados ?? data.cliente?.aceitaProtecaoDados,
+      aceitaMarketing: data.aceitaMarketing ?? data.cliente?.aceitaMarketing,
+      aceitaAtendimento: data.aceitaAtendimento ?? data.cliente?.aceitaAtendimento,
+    } as SessaoResponse;
+    
+    console.log('🔄 Dados mapeados:', JSON.stringify(mapped, null, 2));
+    return mapped;
+    
+  } catch (error) {
+    console.error('❌ Erro ao chamar /clientes/me:', error);
+    throw error;
+  }
+}
+
+// Função para buscar dados completos do cliente logado (com fallback)
+export async function buscarDadosClienteLogado(): Promise<ClienteResponse> {
+  console.log('🔍 === INICIANDO BUSCA DE DADOS DO CLIENTE ===');
+  
+  try {
+    // Primeiro tenta a API /clientes/me que deve retornar dados completos
+    console.log('📡 Chamando API /clientes/me...');
+    const sessaoData = await getSessao();
+    console.log('📊 Dados da sessão recebidos:', JSON.stringify(sessaoData, null, 2));
+    
+    // Verificar se temos dados mínimos
+    if (!sessaoData.email && !sessaoData.nome && !sessaoData.id) {
+      console.warn('⚠️ Dados da sessão estão vazios ou inválidos');
+      throw new Error('Dados da sessão inválidos');
+    }
+    
+    // WORKAROUND: Se só temos email, tentar buscar por todos os clientes e encontrar o que tem esse email
+    if (sessaoData.email && !sessaoData.id) {
+      console.log('🔧 WORKAROUND: Tentando buscar cliente por email via /clientes...');
+      try {
+        const todosClientes = await listarClientes();
+        console.log('📋 Total de clientes encontrados:', todosClientes.length);
+        
+        const clienteEncontrado = todosClientes.find(cliente => 
+          cliente.email && cliente.email.toLowerCase() === sessaoData.email?.toLowerCase()
+        );
+        
+        if (clienteEncontrado) {
+          console.log('✅ Cliente encontrado por email:', JSON.stringify(clienteEncontrado, null, 2));
+          return clienteEncontrado;
+        } else {
+          console.warn('⚠️ Nenhum cliente encontrado com email:', sessaoData.email);
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro ao buscar clientes por email:', error);
+      }
+    }
+    
+    // Se temos um ID, buscar dados completos via /clientes/{id}
+    if (sessaoData.id) {
+      try {
+        console.log('🔍 Buscando dados completos via /clientes/' + sessaoData.id);
+        const dadosCompletos = await buscarCliente(sessaoData.id);
+        console.log('✅ Dados completos encontrados via /clientes/{id}:', JSON.stringify(dadosCompletos, null, 2));
+        return dadosCompletos;
+      } catch (error) {
+        console.warn('⚠️ Erro ao buscar por ID, continuando com dados da sessão:', error);
+      }
+    } else {
+      console.warn('⚠️ ID do cliente não encontrado na sessão');
+    }
+    
+    // Fallback: montar ClienteResponse a partir dos dados da sessão
+    const dadosUsuario = {
+      id: sessaoData.id || 0,
+      nome: sessaoData.nome || 'Usuário',
+      email: sessaoData.email || '',
+      cpf: sessaoData.cpf || '',
+      telefone: sessaoData.telefone || '',
+      cep: sessaoData.cep || '',
+      rua: sessaoData.rua || '',
+      bairro: sessaoData.bairro || '',
+      cidade: sessaoData.cidade || '',
+      estado: sessaoData.estado || '',
+      numero: sessaoData.numero || '',
+      aceitaProtecaoDados: sessaoData.aceitaProtecaoDados ?? true,
+      aceitaMarketing: sessaoData.aceitaMarketing ?? false,
+      aceitaAtendimento: sessaoData.aceitaAtendimento ?? false,
+    };
+    
+    console.log('🔄 Usando dados da sessão como fallback:', JSON.stringify(dadosUsuario, null, 2));
+    return dadosUsuario;
+    
+  } catch (error) {
+    console.error('❌ Erro crítico ao buscar dados do cliente:', error);
+    console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'Stack não disponível');
+    throw error;
+  }
 }
 
 // Logout (Spring Security padrão usa POST /logout)

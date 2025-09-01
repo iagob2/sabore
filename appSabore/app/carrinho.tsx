@@ -34,6 +34,22 @@ const Carrinho = () => {
     console.log('🔐 Autenticado:', isAuthenticated);
     console.log('👤 Sessão:', session);
     console.log('🎫 Token presente:', !!session?.token);
+    
+    // Debug específico para itens vindos do refazer pedido
+    if (carrinho.length > 0) {
+      console.log('🔄 === ANÁLISE DOS ITENS ===');
+      carrinho.forEach((item, index) => {
+        console.log(`📋 Item ${index + 1}:`, {
+          nome: item.nome,
+          preco: item.preco,
+          quantidade: item.quantidade,
+          restaurante: item.restauranteNome,
+          descricao: item.descricao,
+          observacoes: item.observacoes,
+          isFromPreviousOrder: item.descricao === 'Item do pedido anterior'
+        });
+      });
+    }
   }, [carrinho, itemCount, restauranteNome, isAuthenticated, session]);
 
   const calcularTotal = () => {
@@ -45,30 +61,87 @@ const Carrinho = () => {
   };
 
   const removerItem = (cartId: string, nomeItem: string) => {
+    console.log('🗑️ === TENTATIVA DE REMOVER ITEM ===');
+    console.log('🔍 CartId:', cartId);
+    console.log('📦 Nome do item:', nomeItem);
+    console.log('🛒 Função removeItem disponível:', typeof removeItem);
+    
+    // Teste direto sem Alert primeiro
+    console.log('🧪 Testando remoção direta sem Alert...');
+    try {
+      removeItem(cartId);
+      console.log('✅ Remoção direta funcionou!');
+      return;
+    } catch (error) {
+      console.error('❌ Erro na remoção direta:', error);
+    }
+    
+    // Se chegou aqui, usar Alert
+    console.log('📱 Mostrando Alert de confirmação...');
     Alert.alert(
       'Remover Item',
       `Tem certeza que deseja remover "${nomeItem}" do carrinho?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Cancelar', 
+          style: 'cancel',
+          onPress: () => console.log('❌ Usuário cancelou remoção')
+        },
         { 
           text: 'Remover', 
           style: 'destructive',
-          onPress: () => removeItem(cartId)
+          onPress: () => {
+            console.log('✅ Usuário confirmou remoção do item:', cartId);
+            try {
+              removeItem(cartId);
+              console.log('✅ Função removeItem chamada com sucesso via Alert');
+            } catch (error) {
+              console.error('❌ Erro ao chamar removeItem via Alert:', error);
+            }
+          }
         }
       ]
     );
   };
 
   const limparCarrinho = () => {
+    console.log('🗑️ === TENTATIVA DE LIMPAR CARRINHO ===');
+    console.log('📦 Itens atuais no carrinho:', carrinho.length);
+    console.log('🛒 Função clearCart disponível:', typeof clearCart);
+    
+    // Teste direto sem Alert primeiro
+    console.log('🧪 Testando limpeza direta sem Alert...');
+    try {
+      clearCart();
+      console.log('✅ Limpeza direta funcionou!');
+      return;
+    } catch (error) {
+      console.error('❌ Erro na limpeza direta:', error);
+    }
+    
+    // Se chegou aqui, usar Alert
+    console.log('📱 Mostrando Alert de confirmação...');
     Alert.alert(
       'Limpar Carrinho',
       'Tem certeza que deseja remover todos os itens do carrinho?',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Cancelar', 
+          style: 'cancel',
+          onPress: () => console.log('❌ Usuário cancelou limpeza')
+        },
         { 
           text: 'Limpar', 
           style: 'destructive',
-          onPress: () => clearCart()
+          onPress: () => {
+            console.log('✅ Usuário confirmou limpeza do carrinho');
+            try {
+              clearCart();
+              console.log('✅ Função clearCart chamada com sucesso via Alert');
+            } catch (error) {
+              console.error('❌ Erro ao chamar clearCart via Alert:', error);
+            }
+          }
         }
       ]
     );
@@ -269,7 +342,14 @@ const Carrinho = () => {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.verdeFolha }]}>🛒 Meu Carrinho</Text>
           {carrinho.length > 0 && (
-            <TouchableOpacity onPress={limparCarrinho} style={[styles.limparButton, { backgroundColor: colors.vermelhoCambuci }]}> 
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('🔘 Botão de limpar carrinho clicado!');
+                console.log('📦 Itens no carrinho:', carrinho.length);
+                limparCarrinho();
+              }} 
+              style={[styles.limparButton, { backgroundColor: colors.vermelhoCambuci }]}
+            > 
               <Text style={[styles.limparText, { color: colors.branco }]}>Limpar Carrinho</Text>
             </TouchableOpacity>
           )}
@@ -316,7 +396,9 @@ const Carrinho = () => {
                       
                       {/* Descrição do item */}
                       {item.descricao && (
-                        <Text style={[styles.itemDescription, { color: colors.preto }]}>{item.descricao}</Text>
+                        <Text style={[styles.itemDescription, { color: colors.preto }]}>
+                          {item.descricao === 'Item do pedido anterior' ? '🔄 ' : ''}{item.descricao}
+                        </Text>
                       )}
                       
                       {/* Ingredientes Removidos */}
@@ -364,7 +446,12 @@ const Carrinho = () => {
 
                       {/* Botão Remover */}
                       <TouchableOpacity 
-                        onPress={() => removerItem(item.cartId, item.nome)}
+                        onPress={() => {
+                          console.log('🔘 Botão de remover item clicado!');
+                          console.log('🔍 CartId do item:', item.cartId);
+                          console.log('📦 Nome do item:', item.nome);
+                          removerItem(item.cartId, item.nome);
+                        }}
                         style={[styles.removeButton, { backgroundColor: colors.vermelhoCambuci }]}
                       >
                         <Text style={[styles.removeButtonText, { color: colors.branco }]}>🗑️</Text>

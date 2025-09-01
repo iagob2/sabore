@@ -11,7 +11,7 @@ import { useCart, generateCartId, CartItem } from '../contexts/CartContext';
 // APIs
 import { ClienteResponse, atualizarCliente, getSessao, logoutCliente, buscarCliente, buscarEnderecoPorCep, buscarDadosClienteLogado } from '../api/cliente';
 import { PedidoResponse, buscarPedidosCliente, formatarDataPedido, formatarStatusPedido, calcularValorTotal } from '../api/pedido';
-import { AvaliacaoPratoResponse, formatarDataAvaliacao } from '../api/avaliacaoPrato';
+import { AvaliacaoPratoResponse, formatarDataAvaliacao, buscarAvaliacoesCliente } from '../api/avaliacaoPrato';
 import { ItemRestauranteResponse, buscarItemPorId } from '../api/itemRestaurante';
 
 // Interface estendida para incluir campos formatados
@@ -591,9 +591,25 @@ const PerfilUsuario = () => {
       console.log('📋 Pedidos carregados e ordenados:', pedidosOrdenados.length);
       console.log('📋 Últimos 5 pedidos:', pedidosOrdenados.map(p => ({ id: p.id, data: p.criadoEm })));
       
-      // TODO: Implementar busca de avaliações do cliente
-      // const avaliacoesData = await buscarAvaliacoesCliente();
-      // setAvaliacoes(avaliacoesData);
+      // Buscar avaliações do cliente
+      console.log('⭐ Carregando avaliações do cliente...');
+      try {
+        const avaliacoesData = await buscarAvaliacoesCliente();
+        console.log('⭐ Avaliações carregadas:', avaliacoesData.length);
+        console.log('⭐ Dados das avaliações:', JSON.stringify(avaliacoesData, null, 2));
+        
+        // Ordenar avaliações por data (mais recentes primeiro)
+        const avaliacoesOrdenadas = avaliacoesData.sort((a, b) => 
+          new Date(b.dataAvaliacao).getTime() - new Date(a.dataAvaliacao).getTime()
+        );
+        
+        setAvaliacoes(avaliacoesOrdenadas);
+        console.log('⭐ Avaliações ordenadas por data:', avaliacoesOrdenadas.length);
+      } catch (error) {
+        console.warn('⚠️ Erro ao carregar avaliações (não crítico):', error);
+        // Não mostrar erro para o usuário, apenas log
+        setAvaliacoes([]);
+      }
       
       setUserData(dadosFormatados);
       
@@ -1055,6 +1071,24 @@ const PerfilUsuario = () => {
           <TouchableOpacity onPress={handleEditProfile} style={perfilUsuarioStyles.editButton}>
             <Text style={perfilUsuarioStyles.editButtonText}>Editar Perfil</Text>
           </TouchableOpacity>
+          
+          {/* Botão de teste temporário para debug */}
+          <TouchableOpacity 
+            onPress={async () => {
+              console.log('🧪 === TESTE MANUAL DE AVALIAÇÕES ===');
+              try {
+                const avaliacoes = await buscarAvaliacoesCliente();
+                console.log('🧪 Resultado do teste:', avaliacoes);
+                Alert.alert('Teste', `Encontradas ${avaliacoes.length} avaliações`);
+              } catch (error) {
+                console.error('🧪 Erro no teste:', error);
+                Alert.alert('Erro', error instanceof Error ? error.message : 'Erro desconhecido');
+              }
+            }}
+            style={[perfilUsuarioStyles.editButton, { backgroundColor: colors.amareloOuro, marginTop: 8 }]}
+          >
+            <Text style={perfilUsuarioStyles.editButtonText}>🧪 Testar Avaliações</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Seção Refazer Último Pedido */}
@@ -1185,26 +1219,97 @@ const PerfilUsuario = () => {
 
         {/* Seção Minhas Avaliações */}
         <View style={perfilUsuarioStyles.section}>
-          <Text style={perfilUsuarioStyles.sectionTitle}>
-            <Text style={perfilUsuarioStyles.sectionIcon}>⭐</Text>
-            Minhas Avaliações
-          </Text>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}>
+            <Text style={perfilUsuarioStyles.sectionTitle}>
+              <Text style={perfilUsuarioStyles.sectionIcon}>⭐</Text>
+              Minhas Avaliações
+            </Text>
+            {avaliacoes.length > 0 && (
+              <TouchableOpacity 
+                onPress={carregarDadosUsuario}
+                style={{
+                  backgroundColor: colors.verdeFolha + '20',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: colors.verdeFolha,
+                }}
+              >
+                <Text style={{
+                  color: colors.verdeFolha,
+                  fontSize: 12,
+                  fontWeight: 'bold',
+                }}>
+                  🔄 Atualizar
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
           
           {avaliacoes.length > 0 ? (
             avaliacoes.map((avaliacao) => (
               <View key={avaliacao.id} style={perfilUsuarioStyles.reviewCard}>
                 <View style={perfilUsuarioStyles.reviewHeader}>
-                  <Text style={perfilUsuarioStyles.reviewPrato}>
-                    {avaliacao.itemRestaurante.nome}
-                  </Text>
-                  <StarRating rating={avaliacao.nota} size={16} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={perfilUsuarioStyles.reviewPrato}>
+                      🍽️ {avaliacao.itemRestaurante.nome}
+                    </Text>
+                    <Text style={[perfilUsuarioStyles.orderDate, { fontSize: 12, marginTop: 2 }]}>
+                      💰 R$ {avaliacao.itemRestaurante.preco.toFixed(2).replace('.', ',')}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <StarRating rating={avaliacao.nota} size={18} />
+                    <Text style={[perfilUsuarioStyles.orderDate, { fontSize: 12, marginTop: 4 }]}>
+                      {avaliacao.nota}/5 ⭐
+                    </Text>
+                  </View>
                 </View>
+                
                 {avaliacao.comentario && (
-                  <Text style={perfilUsuarioStyles.reviewText}>{avaliacao.comentario}</Text>
+                  <View style={{
+                    backgroundColor: colors.verdeFolha + '10',
+                    borderRadius: 8,
+                    padding: 12,
+                    marginVertical: 8,
+                    borderLeftWidth: 3,
+                    borderLeftColor: colors.verdeFolha,
+                  }}>
+                    <Text style={[perfilUsuarioStyles.reviewText, { 
+                      fontStyle: 'italic',
+                      color: colors.marromFeijao 
+                    }]}>
+                      💬 "{avaliacao.comentario}"
+                    </Text>
+                  </View>
                 )}
-                <Text style={perfilUsuarioStyles.orderDate}>
-                  {formatarDataAvaliacao(avaliacao.dataAvaliacao)}
-                </Text>
+                
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.cinzaClaro,
+                }}>
+                  <Text style={[perfilUsuarioStyles.orderDate, { fontSize: 12 }]}>
+                    📅 {formatarDataAvaliacao(avaliacao.dataAvaliacao)}
+                  </Text>
+                  <Text style={[perfilUsuarioStyles.orderDate, { 
+                    fontSize: 12, 
+                    color: colors.verdeFolha,
+                    fontWeight: 'bold'
+                  }]}>
+                    ID: #{avaliacao.id}
+                  </Text>
+                </View>
               </View>
             ))
           ) : (

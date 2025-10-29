@@ -365,7 +365,6 @@ const PerfilEmpresa = () => {
   const { addItem: addToCart, itemCount: cartItemCount, canAddItem } = useCart();
   const { session, isAuthenticated } = useAuthSession();
 
-  const [modalCardapioVisible, setModalCardapioVisible] = useState(false);
 
   // Função para adaptar item da API para formato do CardPrato
   const adaptarItemParaCardPrato = (item: ItemRestauranteResponse) => {
@@ -857,58 +856,6 @@ const PerfilEmpresa = () => {
     });
   }
 
-  function abrirCardapio() {
-    console.log('🍽️ Abrindo cardápio - URL:', empresaCompleta?.cardapioUrl);
-    if (empresaCompleta?.cardapioUrl && empresaCompleta.cardapioUrl !== '#') {
-      // Primeiro tenta abrir o modal interno
-      setModalCardapioVisible(true);
-    } else {
-      toast({
-        title: "Cardápio",
-        description: "Link do cardápio não disponível no momento.",
-      });
-    }
-  }
-
-  function construirUrlCardapio(cardapioUrl: string): string {
-    // Se a URL já é completa (com http/https), usa ela
-    if (cardapioUrl.startsWith('http://') || cardapioUrl.startsWith('https://')) {
-      // Extrai apenas o caminho após o domínio para reconstruir com nossa API_BASE_URL
-      try {
-        const url = new URL(cardapioUrl);
-        const caminhoRelativo = url.pathname;
-        return `${API_BASE_URL}${caminhoRelativo}`;
-      } catch (e) {
-        console.warn('Erro ao processar URL:', e);
-        return cardapioUrl;
-      }
-    }
-    
-    // Se é apenas um caminho relativo, adiciona a API_BASE_URL
-    const caminho = cardapioUrl.startsWith('/') ? cardapioUrl : `/${cardapioUrl}`;
-    return `${API_BASE_URL}${caminho}`;
-  }
-
-  function abrirCardapioExterno() {
-    if (empresaCompleta?.cardapioUrl && empresaCompleta.cardapioUrl !== '#') {
-      const urlCorrigida = construirUrlCardapio(empresaCompleta.cardapioUrl);
-      
-      console.log('🔗 URL original:', empresaCompleta.cardapioUrl);
-      console.log('🏗️ API_BASE_URL:', API_BASE_URL);
-      console.log('🔧 URL construída:', urlCorrigida);
-      console.log('🚀 Abrindo URL...');
-      
-      Linking.openURL(urlCorrigida).then(() => {
-        console.log('✅ URL aberta com sucesso');
-      }).catch((err) => {
-        console.error('❌ Erro ao abrir URL:', err);
-      });
-      
-      setModalCardapioVisible(false);
-    } else {
-      console.log('❌ URL do cardápio inválida ou vazia');
-    }
-  }
 
   // Renderizar loading
   if (loading) {
@@ -1114,27 +1061,65 @@ const PerfilEmpresa = () => {
             style={perfilEmpresaStyles.bannerGradient}
             pointerEvents="none"
           />
-          {/* Estrelinhas de avaliação no limite inferior do banner */}
+          
+          {/* Título do restaurante no banner - Mobile */}
+          {(isSmallScreen || isMediumScreen) && (
+            <View
+              style={{
+                position: 'absolute',
+                top: (isSmallScreen || isMediumScreen) ? 12 : 0,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                zIndex: 5,
+                paddingHorizontal: 16,
+              }}
+            >
+              <Text 
+                style={{ 
+                  color: colors.branco, 
+                  fontSize: isSmallScreen ? 22 : 26, 
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  textShadowColor: 'rgba(0,0,0,0.75)',
+                  textShadowOffset: { width: 0, height: 2 },
+                  textShadowRadius: 8,
+                  letterSpacing: 0.5,
+                }}
+              >
+                {empresaCompleta.nome}
+              </Text>
+            </View>
+          )}
+
+          {/* Estrelinhas de avaliação - posicionamento melhorado para mobile */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: 'rgba(101,12,12,0.07)',
-              borderRadius: 16,
-              paddingVertical: isSmallScreen ? 4 : 6,
-              paddingHorizontal: isSmallScreen ? 12 : 18,
+              backgroundColor: (isSmallScreen || isMediumScreen) ? 'rgba(0,0,0,0.6)' : 'rgba(101,12,12,0.07)',
+              borderRadius: (isSmallScreen || isMediumScreen) ? 20 : 16,
+              paddingVertical: isSmallScreen ? 6 : isMediumScreen ? 6 : 6,
+              paddingHorizontal: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
               position: 'absolute',
-              bottom: isSmallScreen ? 8 : 12,
-              right: isSmallScreen ? 12 : 32,
+              bottom: (isSmallScreen || isMediumScreen) ? 16 : 12,
+              right: (isSmallScreen || isMediumScreen) ? 16 : 32,
               zIndex: 10,
+              borderWidth: (isSmallScreen || isMediumScreen) ? 1.5 : 0,
+              borderColor: (isSmallScreen || isMediumScreen) ? 'rgba(255, 179, 0, 0.5)' : 'transparent',
             }}
           >
             <StarRating 
               rating={mediaAvaliacaoRestaurante} 
-              size={isSmallScreen ? 18 : 22} 
+              size={isSmallScreen ? 16 : isMediumScreen ? 18 : 22} 
               interactive={false}
             />
-            <Text style={{ color: colors.amareloOuro, fontWeight: 'bold', fontSize: isSmallScreen ? 16 : 18, marginLeft: 10 }}>
+            <Text style={{ 
+              color: colors.amareloOuro, 
+              fontWeight: 'bold', 
+              fontSize: isSmallScreen ? 14 : isMediumScreen ? 16 : 18, 
+              marginLeft: isSmallScreen ? 6 : 10,
+            }}>
               {mediaAvaliacaoRestaurante.toFixed(1)}
             </Text>
           </View>
@@ -1148,9 +1133,12 @@ const PerfilEmpresa = () => {
               fallbackSource={imagemPadrao}
               style={[perfilEmpresaStyles.logo, { width: isSmallScreen ? 96 : 120, height: isSmallScreen ? 96 : 120, borderRadius: isSmallScreen ? 48 : 60 }]} 
             />
-            <View style={{ flex: 1, marginLeft: isSmallScreen ? 0 : 20, marginTop: isSmallScreen ? 8 : 0 }}>
-              <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: isSmallScreen ? 'center' : 'left', fontSize: isSmallScreen ? 24 : 30 }]}>{empresaCompleta.nome}</Text>
-            </View>
+            {/* Título do restaurante - Desktop (mobile mostra no banner) */}
+            {!isSmallScreen && !isMediumScreen && (
+              <View style={{ flex: 1, marginLeft: isSmallScreen ? 0 : 20, marginTop: isSmallScreen ? 8 : 0 }}>
+                <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: isSmallScreen ? 'center' : 'left', fontSize: isSmallScreen ? 24 : 30 }]}>{empresaCompleta.nome}</Text>
+              </View>
+            )}
           </View>
 
           {/* Info rápida responsiva */}
@@ -1255,51 +1243,6 @@ const PerfilEmpresa = () => {
                   <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>👥</Text>Lotação</Text>
                   <Text style={perfilEmpresaStyles.cardText}>
                     {empresaCompleta.lotacao ? `Capacidade para ${empresaCompleta.lotacao} pessoas` : 'Capacidade não informada'}
-                  </Text>
-                  <View style={perfilEmpresaStyles.separator} />
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📋</Text>Cardápio</Text>
-                  {empresaCompleta.cardapioUrl && empresaCompleta.cardapioUrl !== '#' ? (
-                    <TouchableOpacity
-                      onPress={abrirCardapio}
-                      style={{
-                        backgroundColor: colors.verdeFolha,
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderRadius: 8,
-                        alignItems: 'center',
-                        marginBottom: 12,
-                        borderWidth: 1,
-                        borderColor: colors.verdeFolha
-                      }}
-                    >
-                      <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>
-                        📖 Ver Cardápio Completo
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={{
-                      backgroundColor: colors.branco,
-                      borderWidth: 1,
-                      borderColor: colors.marromFeijao,
-                      borderStyle: 'dashed',
-                      borderRadius: 8,
-                      padding: 16,
-                      alignItems: 'center',
-                      marginBottom: 12
-                    }}>
-                      <Text style={{ color: colors.marromFeijao, fontSize: 14, textAlign: 'center', marginBottom: 8 }}>
-                        📄 Cardápio em breve
-                      </Text>
-                      <Text style={{ color: colors.preto, fontSize: 12, textAlign: 'center', opacity: 0.8 }}>
-                        O restaurante ainda não cadastrou o cardápio digital. Entre em contato para mais informações.
-                      </Text>
-                    </View>
-                  )}
-                  <Text style={perfilEmpresaStyles.cardText}>
-                    <Text style={{ fontWeight: 'bold' }}>Contato:</Text> {empresaCompleta.email}
-                  </Text>
-                  <Text style={perfilEmpresaStyles.cardText}>
-                    <Text style={{ fontWeight: 'bold' }}>CNPJ:</Text> {empresaCompleta.cnpj || 'Não informado'}
                   </Text>
                   <View style={perfilEmpresaStyles.separator} />
                   <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📋</Text>Reservas</Text>
@@ -1689,97 +1632,6 @@ const PerfilEmpresa = () => {
         </View>
       </Modal>
 
-      {/* Modal do Cardápio */}
-      <Modal
-        visible={modalCardapioVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalCardapioVisible(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <View style={{ 
-            backgroundColor: colors.branco, 
-            borderRadius: 20, 
-            width: '100%', 
-            maxWidth: 500,
-            alignItems: 'center',
-            padding: 28,
-            borderWidth: 2,
-            borderColor: colors.verdeFolha,
-            shadowColor: colors.marromFeijao,
-            shadowOpacity: 0.18,
-            shadowRadius: 12,
-            elevation: 10,
-          }}>
-            <Text style={{ 
-              color: colors.verdeFolha, 
-              fontWeight: 'bold', 
-              fontSize: 22, 
-              marginBottom: 18, 
-              textAlign: 'center', 
-              letterSpacing: 1 
-            }}>
-              📋 Cardápio do {empresaCompleta?.nome}
-            </Text>
-            
-            <Text style={{ 
-              color: colors.preto, 
-              fontSize: 16, 
-              textAlign: 'center', 
-              marginBottom: 24,
-              lineHeight: 22
-            }}>
-              Escolha como visualizar nosso cardápio:
-            </Text>
-
-            <View style={{ width: '100%', gap: 12 }}>
-              <TouchableOpacity 
-                onPress={abrirCardapioExterno}
-                style={{ 
-                  backgroundColor: colors.verdeFolha,
-                  paddingVertical: 14,
-                  paddingHorizontal: 20,
-                  borderRadius: 10,
-                  alignItems: 'center',
-                  borderWidth: 1.5,
-                  borderColor: colors.verdeFolha
-                }}
-              >
-                <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>
-                  🌐 Abrir em Nova Aba
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                onPress={() => setModalCardapioVisible(false)}
-                style={{ 
-                  backgroundColor: colors.branco,
-                  paddingVertical: 14,
-                  paddingHorizontal: 20,
-                  borderRadius: 10,
-                  alignItems: 'center',
-                  borderWidth: 1.5,
-                  borderColor: colors.marromFeijao
-                }}
-              >
-                <Text style={{ color: colors.marromFeijao, fontWeight: 'bold', fontSize: 16 }}>
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={{ 
-              color: colors.preto, 
-              fontSize: 12, 
-              textAlign: 'center', 
-              marginTop: 16,
-              opacity: 0.8
-            }}>
-              O cardápio será aberto em seu navegador padrão
-            </Text>
-          </View>
-        </View>
-      </Modal>
 
 
     </View>

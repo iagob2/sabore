@@ -16,49 +16,31 @@ interface CardData {
   deliveryTime?: string;
   deliveryFee?: string;
   distance?: string;
-  isNew?: boolean;
   hasPromotion?: boolean;
-  isFavorite?: boolean;
 }
 
 interface HorizontalCardCarouselProps {
   cards: CardData[];
   onCardClick?: (id: string) => void;
   title?: string;
-  showFavorites?: boolean;
 }
 
 const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
   cards,
   onCardClick,
-  title,
-  showFavorites = false
+  title
 }) => {
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.min(320, Math.max(260, Math.floor(screenWidth * 0.8)));
   const sideMargin = screenWidth < 360 ? 8 : 12;
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const handleCardClick = (id: string) => {
     if (onCardClick) onCardClick(id);
     router.push(`/perfilEmpresa?id=${id}`);
   };
 
-  const handleFavoritePress = (id: string) => {
-    const newFavorites = new Set(favorites);
-    if (newFavorites.has(id)) {
-      newFavorites.delete(id);
-    } else {
-      newFavorites.add(id);
-    }
-    setFavorites(newFavorites);
-  };
-
-  // Filtrar cards se showFavorites estiver ativo
-  const displayCards = showFavorites 
-    ? cards.filter(card => favorites.has(card.id))
-    : cards;
+  const displayCards = cards;
 
   if (displayCards.length === 0) {
     return (
@@ -68,7 +50,7 @@ const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
         paddingHorizontal: 20 
       }}>
         <MaterialIcons 
-          name={showFavorites ? "favorite-border" : "restaurant"} 
+          name="restaurant" 
           size={48} 
           color={colors.cinzaClaro} 
         />
@@ -78,10 +60,7 @@ const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
           marginTop: 16,
           textAlign: 'center' 
         }}>
-          {showFavorites 
-            ? "Nenhum restaurante favoritado ainda" 
-            : "Nenhum restaurante encontrado"
-          }
+          Nenhum restaurante encontrado
         </Text>
       </View>
     );
@@ -104,22 +83,6 @@ const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
           }}>
             {title}
           </Text>
-          {showFavorites && favorites.size > 0 && (
-            <View style={{
-              backgroundColor: colors.rosaPromocao,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
-            }}>
-              <Text style={{ 
-                color: colors.branco, 
-                fontSize: 12, 
-                fontWeight: '600' 
-              }}>
-                {favorites.size} favorito{favorites.size !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          )}
         </View>
       )}
       
@@ -152,11 +115,8 @@ const HorizontalCardCarousel: React.FC<HorizontalCardCarouselProps> = ({
               deliveryTime={card.deliveryTime}
               deliveryFee={card.deliveryFee}
               distance={card.distance}
-              isNew={card.isNew}
               hasPromotion={card.hasPromotion}
-              isFavorite={favorites.has(card.id)}
               onCardClick={handleCardClick}
-              onFavoritePress={handleFavoritePress}
             />
           </View>
         ))}

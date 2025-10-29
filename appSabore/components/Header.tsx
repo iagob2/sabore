@@ -225,32 +225,46 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
         </View>
       )}
       <View style={headerStyles.header}>
-        <TouchableOpacity onPress={handleSpinAndNavigate} style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
-        <Animated.View style={{
-          width: isSmallScreen ? 32 : 56,
-          height: isSmallScreen ? 32 : 56,
-          borderRadius: isSmallScreen ? 16 : 28,
-          borderWidth: 2,
-          borderColor: colors.marromFeijao,
-          backgroundColor: colors.branco,
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: [{ rotateY: spin }],
-        }}>
-          <Image source={logoApp} style={{ 
-            width: isSmallScreen ? 24 : 48, 
-            height: isSmallScreen ? 24 : 48, 
-            borderRadius: isSmallScreen ? 12 : 24, 
-            resizeMode: 'contain' 
-          }} />
-        </Animated.View>
-        <Text style={{
-          color: colors.verdeFolha,
-          fontWeight: 'bold',
-          fontSize: isSmallScreen ? 16 : 24,
-          marginLeft: isSmallScreen ? 6 : 12,
-          letterSpacing: 1,
-        }}>Saborê</Text>
+        <TouchableOpacity 
+          onPress={handleSpinAndNavigate} 
+          style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            flexShrink: 1,
+            paddingVertical: 4,
+            paddingRight: 12,
+          }}
+        >
+          <Animated.View style={{
+            width: isSmallScreen ? 36 : 52,
+            height: isSmallScreen ? 36 : 52,
+            borderRadius: isSmallScreen ? 18 : 26,
+            borderWidth: 2.5,
+            borderColor: colors.marromFeijao,
+            backgroundColor: colors.branco,
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: [{ rotateY: spin }],
+            shadowColor: colors.marromFeijao,
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 4,
+          }}>
+            <Image source={logoApp} style={{ 
+              width: isSmallScreen ? 28 : 44, 
+              height: isSmallScreen ? 28 : 44, 
+              borderRadius: isSmallScreen ? 14 : 22, 
+              resizeMode: 'contain' 
+            }} />
+          </Animated.View>
+          <Text style={{
+            color: colors.verdeFolha,
+            fontWeight: '700',
+            fontSize: isSmallScreen ? 18 : 26,
+            marginLeft: isSmallScreen ? 8 : 14,
+            letterSpacing: 1.2,
+          }}>Saborê</Text>
         </TouchableOpacity>
 
         {/* Ações - Desktop/Tablet */}
@@ -334,11 +348,26 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
               )}
             </View>
             {/* Carrinho */}
-            <TouchableOpacity onPress={onCartPress} style={headerStyles.cartButton}>
-              <Text style={{ color: colors.amareloOuro, fontSize: 20 }}>🛒</Text>
+            <TouchableOpacity 
+              onPress={onCartPress} 
+              style={[
+                headerStyles.cartButton,
+                {
+                  borderWidth: 2,
+                  borderColor: colors.amareloOuro,
+                  backgroundColor: cartItemCount > 0 ? 'rgba(255, 179, 0, 0.1)' : 'transparent',
+                }
+              ]}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons 
+                name="shopping-cart" 
+                size={isSmallScreen ? 20 : 24} 
+                color={cartItemCount > 0 ? colors.amareloOuro : colors.verdeFolha} 
+              />
               {cartItemCount > 0 && (
                 <View style={headerStyles.cartBadge}>
-                  <Text style={headerStyles.cartBadgeText}>{cartItemCount}</Text>
+                  <Text style={headerStyles.cartBadgeText}>{cartItemCount > 99 ? '99+' : cartItemCount}</Text>
                 </View>
               )}
             </TouchableOpacity>

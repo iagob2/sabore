@@ -19,10 +19,7 @@ interface CardProps {
   deliveryTime?: string;
   deliveryFee?: string;
   distance?: string;
-  isNew?: boolean;
   hasPromotion?: boolean;
-  isFavorite?: boolean;
-  onFavoritePress?: (id: string) => void;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -37,16 +34,12 @@ const Card: React.FC<CardProps> = ({
   deliveryTime,
   deliveryFee,
   distance,
-  isNew = false,
-  hasPromotion = false,
-  isFavorite = false,
-  onFavoritePress
+  hasPromotion = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const animScaleX = useRef(new Animated.Value(1)).current;
   const [isAnimating, setIsAnimating] = useState(false);
-  const favoriteAnim = useRef(new Animated.Value(isFavorite ? 1 : 0)).current;
 
   const handleCardClick = () => {
     if (!interactive || isAnimating) return;
@@ -60,18 +53,6 @@ const Card: React.FC<CardProps> = ({
       animScaleX.setValue(1);
       if (onCardClick) onCardClick(id);
     });
-  };
-
-  const handleFavoritePress = () => {
-    if (onFavoritePress) {
-      Animated.spring(favoriteAnim, {
-        toValue: isFavorite ? 0 : 1,
-        useNativeDriver: Platform.OS !== 'web',
-        tension: 300,
-        friction: 8,
-      }).start();
-      onFavoritePress(id);
-    }
   };
 
   // Props para hover apenas no web
@@ -107,54 +88,14 @@ const Card: React.FC<CardProps> = ({
           />
           <View style={cardStyles.gradient} />
           
-          {/* Badges */}
+          {/* Badges - apenas promoções */}
           <View style={cardStyles.badgeContainer}>
-            {isNew && (
-              <View style={[cardStyles.badge, { backgroundColor: colors.azulInfo }]}>
-                <Text style={cardStyles.badgeText}>Novo</Text>
-              </View>
-            )}
             {hasPromotion && (
               <View style={[cardStyles.badge, { backgroundColor: colors.rosaPromocao }]}>
                 <Text style={cardStyles.badgeText}>Promo</Text>
               </View>
             )}
           </View>
-
-          {/* Botão de favorito */}
-          {onFavoritePress && (
-            <TouchableOpacity
-              onPress={handleFavoritePress}
-              style={{
-                position: 'absolute',
-                top: 12,
-                left: 12,
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.overlayEscuro,
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 5,
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Animated.View style={{
-                transform: [{
-                  scale: favoriteAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 1.2],
-                  })
-                }]
-              }}>
-                <MaterialIcons 
-                  name={isFavorite ? "favorite" : "favorite-border"} 
-                  size={20} 
-                  color={isFavorite ? colors.vermelhoErro : colors.branco} 
-                />
-              </Animated.View>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Conteúdo */}

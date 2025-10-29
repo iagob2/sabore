@@ -3,6 +3,7 @@ import { colors } from './colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isSmallScreen = SCREEN_WIDTH < 400;
+const isMediumScreen = SCREEN_WIDTH >= 400 && SCREEN_WIDTH < 768;
 const isLargeScreen = SCREEN_WIDTH > 900;
 
 export const indexStyles = StyleSheet.create({
@@ -211,48 +212,66 @@ export const indexStyles = StyleSheet.create({
   // Estilos para footer - Versão equilibrada
   footerContainer: {
     backgroundColor: colors.cinzaMuitoClaro,
-    paddingVertical: 32,
-    paddingHorizontal: 20,
+    paddingVertical: isSmallScreen ? 24 : 32,
+    paddingHorizontal: isSmallScreen ? 16 : 20,
     marginTop: 24,
     borderTopWidth: 1,
     borderTopColor: colors.cinzaClaro,
+    width: '100%',
   },
   footerContent: {
-    flexDirection: isSmallScreen ? 'column' : 'row',
-    justifyContent: isSmallScreen ? 'flex-start' : 'space-around',
+    flexDirection: (isSmallScreen || isMediumScreen) ? 'column' : 'row',
+    justifyContent: (isSmallScreen || isMediumScreen) ? 'flex-start' : 'space-around',
     flexWrap: 'wrap',
-    gap: isSmallScreen ? 20 : 24,
+    gap: (isSmallScreen || isMediumScreen) ? 64 : 24,
     marginBottom: 24,
+    width: '100%',
+    alignItems: (isSmallScreen || isMediumScreen) ? 'stretch' : 'flex-start',
   },
   footerSection: {
-    flex: isSmallScreen ? 0 : 1,
-    minWidth: isSmallScreen ? '100%' : 200,
-    alignItems: isSmallScreen ? 'center' : 'flex-start',
+    flex: (isSmallScreen || isMediumScreen) ? 0 : 1,
+    width: (isSmallScreen || isMediumScreen) ? '100%' : undefined,
+    minWidth: (isSmallScreen || isMediumScreen) ? '100%' : 200,
+    maxWidth: (isSmallScreen || isMediumScreen) ? '100%' : undefined,
+    alignItems: (isSmallScreen || isMediumScreen) ? 'center' : 'flex-start',
+    marginBottom: 0,
+    marginTop: 0,
+    paddingTop: 0,
   },
   footerTitle: {
     color: colors.verdeFolha,
     fontSize: isSmallScreen ? 18 : 20,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 12 : 8,
+    textAlign: isSmallScreen ? 'center' : 'left',
+    width: '100%',
   },
   footerDescription: {
     color: colors.cinzaEscuro,
     fontSize: isSmallScreen ? 13 : 14,
     lineHeight: isSmallScreen ? 18 : 20,
-    marginBottom: 16,
-    textAlign: isSmallScreen ? 'center' : 'left',
+    marginBottom: (isSmallScreen || isMediumScreen) ? 0 : 16,
+    textAlign: (isSmallScreen || isMediumScreen) ? 'center' : 'left',
+    width: '100%',
+    paddingHorizontal: (isSmallScreen || isMediumScreen) ? 8 : 0,
+    paddingBottom: (isSmallScreen || isMediumScreen) ? 0 : 0,
   },
   footerSubtitle: {
     color: colors.verdeFolha,
     fontSize: isSmallScreen ? 15 : 16,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 10 : 12,
+    textAlign: isSmallScreen ? 'center' : 'left',
+    width: '100%',
   },
   footerLink: {
     color: colors.cinzaEscuro,
-    fontSize: isSmallScreen ? 13 : 14,
-    marginBottom: 6,
+    fontSize: (isSmallScreen || isMediumScreen) ? 13 : 14,
+    marginBottom: 0,
     textDecorationLine: 'underline',
+    textAlign: (isSmallScreen || isMediumScreen) ? 'center' : 'left',
+    width: '100%',
+    paddingVertical: (isSmallScreen || isMediumScreen) ? 4 : 0,
   },
   footerBottom: {
     borderTopWidth: 1,

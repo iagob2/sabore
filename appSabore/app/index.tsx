@@ -104,7 +104,6 @@ const Index = () => {
       deliveryTime: deliveryTimes[restaurante.id % deliveryTimes.length],
       deliveryFee: deliveryFees[restaurante.id % deliveryFees.length],
       distance: distances[restaurante.id % distances.length],
-      isNew: restaurante.id % 5 === 0, // 20% dos restaurantes são novos
       hasPromotion: restaurante.id % 3 === 0, // 33% têm promoções
     };
   };
@@ -122,7 +121,6 @@ const Index = () => {
       deliveryTime: '25-35 min',
       deliveryFee: 'Grátis',
       distance: '0.8 km',
-      isNew: false,
       hasPromotion: true,
     },
     {
@@ -136,7 +134,6 @@ const Index = () => {
       deliveryTime: '20-30 min',
       deliveryFee: 'R$ 3,00',
       distance: '1.2 km',
-      isNew: true,
       hasPromotion: false,
     },
     {
@@ -150,7 +147,6 @@ const Index = () => {
       deliveryTime: '15-25 min',
       deliveryFee: 'R$ 5,00',
       distance: '0.5 km',
-      isNew: false,
       hasPromotion: true,
     }
   ];
@@ -686,34 +682,44 @@ const Index = () => {
                 Conectando você aos melhores sabores do Brasil. Descubra restaurantes incríveis e faça pedidos deliciosos.
               </Text>
             </View>
-            
-            <View style={indexStyles.footerSection}>
+
+            <View style={[indexStyles.footerSection, { marginTop: (isSmallScreen || isMediumScreen) ? 16 : 0 }]}>
               <Text style={indexStyles.footerSubtitle}>Navegação</Text>
-              <TouchableOpacity onPress={() => router.push('/')}>
-                <Text style={indexStyles.footerLink}>• Página Inicial</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/login')}>
-                <Text style={indexStyles.footerLink}>• Fazer Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/cadastro')}>
-                <Text style={indexStyles.footerLink}>• Criar Conta</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/carrinho')}>
-                <Text style={indexStyles.footerLink}>• Meu Carrinho</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={indexStyles.footerSection}>
-              <Text style={indexStyles.footerSubtitle}>Empresas</Text>
-              <TouchableOpacity onPress={() => router.push('/indexEmpresas')}>
-                <Text style={indexStyles.footerLink}>• Área Empresarial</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/loginEmpresas')}>
-                <Text style={indexStyles.footerLink}>• Login Empresas</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/cadastrarEmpresa')}>
-                <Text style={indexStyles.footerLink}>• Cadastrar Empresa</Text>
-              </TouchableOpacity>
+              <View style={{ 
+                width: '100%', 
+                alignItems: isSmallScreen || isMediumScreen ? 'center' : 'flex-start',
+                gap: isSmallScreen || isMediumScreen ? 4 : 0,
+              }}>
+                <TouchableOpacity onPress={() => router.push('/')}>
+                  <Text style={indexStyles.footerLink}>• Página Inicial</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/login')}>
+                  <Text style={indexStyles.footerLink}>• Fazer Login</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/cadastro')}>
+                  <Text style={indexStyles.footerLink}>• Criar Conta</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/carrinho')}>
+                  <Text style={indexStyles.footerLink}>• Meu Carrinho</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={[indexStyles.footerSubtitle, { marginTop: (isSmallScreen || isMediumScreen) ? 16 : 20 }]}>Empresas</Text>
+              <View style={{ 
+                width: '100%', 
+                alignItems: isSmallScreen || isMediumScreen ? 'center' : 'flex-start',
+                gap: isSmallScreen || isMediumScreen ? 4 : 0,
+              }}>
+                <TouchableOpacity onPress={() => router.push('/indexEmpresas')}>
+                  <Text style={indexStyles.footerLink}>• Área Empresarial</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/loginEmpresas')}>
+                  <Text style={indexStyles.footerLink}>• Login Empresas</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/cadastrarEmpresa')}>
+                  <Text style={indexStyles.footerLink}>• Cadastrar Empresa</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
           

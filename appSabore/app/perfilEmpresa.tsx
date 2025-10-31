@@ -65,11 +65,13 @@ const perfilEmpresaStyles = StyleSheet.create({
     zIndex: 2,
     paddingHorizontal: 20,
     position: 'relative',
+    alignItems: 'flex-start',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   logo: {
     width: 120,
@@ -1127,16 +1129,31 @@ const PerfilEmpresa = () => {
                         {/* Logo, descrição, informações e links sociais em container flexível */}
         <View style={perfilEmpresaStyles.mainContentContainer}>
           {/* Logo e descrição */}
-          <View style={[perfilEmpresaStyles.logoContainer, { flexDirection: isSmallScreen ? 'column' : 'row', alignItems: isSmallScreen ? 'center' : 'center' }]}>
+          <View style={[
+            perfilEmpresaStyles.logoContainer, 
+            { 
+              flexDirection: 'row', 
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+              width: '100%'
+            }
+          ]}>
             <ImageWithFallback 
               source={empresaCompleta.logo} 
               fallbackSource={imagemPadrao}
-              style={[perfilEmpresaStyles.logo, { width: isSmallScreen ? 96 : 120, height: isSmallScreen ? 96 : 120, borderRadius: isSmallScreen ? 48 : 60 }]} 
+              style={[
+                perfilEmpresaStyles.logo, 
+                { 
+                  width: isSmallScreen ? 96 : isMediumScreen ? 100 : 120, 
+                  height: isSmallScreen ? 96 : isMediumScreen ? 100 : 120, 
+                  borderRadius: isSmallScreen ? 48 : isMediumScreen ? 50 : 60
+                }
+              ]} 
             />
             {/* Título do restaurante - Desktop (mobile mostra no banner) */}
             {!isSmallScreen && !isMediumScreen && (
-              <View style={{ flex: 1, marginLeft: isSmallScreen ? 0 : 20, marginTop: isSmallScreen ? 8 : 0 }}>
-                <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: isSmallScreen ? 'center' : 'left', fontSize: isSmallScreen ? 24 : 30 }]}>{empresaCompleta.nome}</Text>
+              <View style={{ flex: 1, marginLeft: 20 }}>
+                <Text style={[perfilEmpresaStyles.nome, { color: colors.branco, textAlign: 'left', fontSize: 30 }]}>{empresaCompleta.nome}</Text>
               </View>
             )}
           </View>

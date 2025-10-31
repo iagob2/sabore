@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './pedido';
+import { API_BASE_URL } from './restaurante';
 
 // Interface para a resposta da API de avaliação de restaurante
 export interface AvaliacaoRestauranteResponse {

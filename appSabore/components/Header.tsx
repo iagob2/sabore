@@ -66,21 +66,28 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
   }, []);
 
 	// Buscar sessão atual (web: via cookie JSESSIONID)
+  const isCheckingSessionRef = React.useRef(false);
   React.useEffect(() => {
-    if (!sessao) {
-      (async () => {
-        try {
-          const me = await getSessao();
-          if (me && me.email) {
-            // Marcar que está usando cookies (Spring Security)
-            setSession({ ...me, useCookies: true });
-          }
-        } catch (_) {
-          // sessão não encontrada, mantém null
-        }
-      })();
+    // Evitar chamadas múltiplas e quando já há sessão
+    if (sessao || isCheckingSessionRef.current) {
+      return;
     }
-  }, [sessao, setSession]);
+    
+    isCheckingSessionRef.current = true;
+    (async () => {
+      try {
+        const me = await getSessao();
+        if (me && me.email) {
+          // Marcar que está usando cookies (Spring Security)
+          setSession({ ...me, useCookies: true });
+        }
+      } catch (_) {
+        // sessão não encontrada (401 é esperado) - silenciar
+      } finally {
+        isCheckingSessionRef.current = false;
+      }
+    })();
+  }, [sessao]);
 
 	const displayName = React.useMemo(() => {
 		if (!sessao) return '';

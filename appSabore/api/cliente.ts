@@ -1,6 +1,8 @@
 // Camada de comunicação com o backend para Cliente
 // Usa cookie de sessão (JSESSIONID), portanto credentials: 'include'
 
+import { API_BASE_URL } from './restaurante';
+
 export interface LoginRequest {
   email: string;
   senha: string;
@@ -66,8 +68,6 @@ export interface SessaoResponse {
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 async function request<T>(path: string, options?: { method?: HttpMethod; body?: unknown }): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -145,13 +145,8 @@ export async function deletarCliente(id: number): Promise<void> {
 
 // Sessão atual do usuário logado (retorna dados completos do cliente)
 export async function getSessao(): Promise<SessaoResponse> {
-  console.log('📡 === CHAMANDO API /clientes/me ===');
-  
   try {
     const data = await request<any>('/clientes/me');
-    console.log('📊 Dados brutos recebidos da API:', JSON.stringify(data, null, 2));
-    console.log('📊 Tipo dos dados:', typeof data);
-    console.log('📊 Chaves disponíveis:', Object.keys(data || {}));
     
     // Mapear dados dependendo da estrutura retornada pelo backend
     const mapped = {
@@ -171,11 +166,19 @@ export async function getSessao(): Promise<SessaoResponse> {
       aceitaAtendimento: data.aceitaAtendimento ?? data.cliente?.aceitaAtendimento,
     } as SessaoResponse;
     
-    console.log('🔄 Dados mapeados:', JSON.stringify(mapped, null, 2));
     return mapped;
     
-  } catch (error) {
-    console.error('❌ Erro ao chamar /clientes/me:', error);
+  } catch (error: any) {
+    // 401 é esperado quando o usuário não está autenticado - não logar como erro
+    if (error?.message?.includes('401') || error?.message?.includes('Erro 401')) {
+      // Silenciar - é comportamento esperado quando não há sessão ativa
+      throw error;
+    }
+    
+    // Para outros erros, logar apenas em modo debug (pode ser removido em produção)
+    if (__DEV__) {
+      console.warn('⚠️ Erro ao buscar sessão (não é 401):', error?.message || error);
+    }
     throw error;
   }
 }
@@ -283,42 +286,90 @@ export async function buscarEnderecoPorCep(cep: string): Promise<EnderecoLookupR
     throw new Error('O CEP deve conter 8 dígitos.');
   }
 
-  // Tenta backend em caminhos comuns
-  const backendPaths = [`/viacep/${sanitized}`, `/enderecos/cep/${sanitized}`, `/cep/${sanitized}`];
-  for (const path of backendPaths) {
-    try {
-      const data = await request<any>(path);
-      // Normaliza possíveis formatos do backend
-      const normalized: EnderecoLookupResponse = {
-        cep: data.cep ?? data.CEP ?? undefined,
-        rua: data.rua ?? data.logradouro ?? undefined,
-        bairro: data.bairro ?? undefined,
-        cidade: data.cidade ?? data.localidade ?? undefined,
-        estado: data.estado ?? data.uf ?? undefined,
-      };
-      if (normalized.cidade || normalized.rua || normalized.estado || normalized.bairro) {
-        return normalized;
-      }
-    } catch {
-      // tenta próximo path
-    }
-  }
+  console.log('🔍 === BUSCANDO CEP ===');
+  console.log('📮 CEP sanitizado:', sanitized);
 
-  // Fallback: ViaCEP público
+  // Primeiro tenta ViaCEP público (mais confiável no mobile)
   const viaCepUrl = `https://viacep.com.br/ws/${sanitized}/json/`;
-  const res = await fetch(viaCepUrl);
-  if (!res.ok) {
-    throw new Error('Falha ao consultar CEP.');
+  try {
+    console.log('🌐 Tentando ViaCEP público:', viaCepUrl);
+    
+    // Usar AbortController para timeout no React Native
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
+    
+    try {
+      const res = await fetch(viaCepUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('📡 Status da resposta ViaCEP:', res.status);
+      
+      if (!res.ok) {
+        throw new Error(`ViaCEP retornou status ${res.status}`);
+      }
+      
+      const data = await res.json();
+      console.log('📊 Dados do ViaCEP:', data);
+      
+      if (data.erro) {
+        throw new Error('CEP não encontrado no ViaCEP.');
+      }
+      
+      const result = {
+        cep: data.cep,
+        rua: data.logradouro || '',
+        bairro: data.bairro || '',
+        cidade: data.localidade || '',
+        estado: data.uf || '',
+      };
+      
+      console.log('✅ CEP encontrado via ViaCEP:', result);
+      return result;
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.warn('⏱️ Timeout ao buscar CEP no ViaCEP');
+        throw new Error('Timeout ao consultar CEP. Verifique sua conexão.');
+      }
+      throw fetchError;
+    }
+  } catch (viaCepError: any) {
+    console.warn('⚠️ Erro ao buscar no ViaCEP, tentando backend:', viaCepError.message);
+    
+    // Fallback: Tenta backend em caminhos comuns
+    const backendPaths = [`/viacep/${sanitized}`, `/enderecos/cep/${sanitized}`, `/cep/${sanitized}`];
+    for (const path of backendPaths) {
+      try {
+        console.log('🔧 Tentando backend path:', path);
+        const data = await request<any>(path);
+        // Normaliza possíveis formatos do backend
+        const normalized: EnderecoLookupResponse = {
+          cep: data.cep ?? data.CEP ?? undefined,
+          rua: data.rua ?? data.logradouro ?? undefined,
+          bairro: data.bairro ?? undefined,
+          cidade: data.cidade ?? data.localidade ?? undefined,
+          estado: data.estado ?? data.uf ?? undefined,
+        };
+        if (normalized.cidade || normalized.rua || normalized.estado || normalized.bairro) {
+          console.log('✅ CEP encontrado via backend:', normalized);
+          return normalized;
+        }
+      } catch (backendError) {
+        console.warn(`⚠️ Erro ao tentar path ${path}:`, backendError);
+        // tenta próximo path
+      }
+    }
+    
+    // Se chegou aqui, nenhuma tentativa funcionou
+    console.error('❌ Todas as tentativas de buscar CEP falharam');
+    throw new Error(viaCepError.message || 'Falha ao consultar CEP. Verifique sua conexão.');
   }
-  const data = await res.json();
-  if (data.erro) {
-    throw new Error('CEP não encontrado.');
-  }
-  return {
-    cep: data.cep,
-    rua: data.logradouro,
-    bairro: data.bairro,
-    cidade: data.localidade,
-    estado: data.uf,
-  };
 }

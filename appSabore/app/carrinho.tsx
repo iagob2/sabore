@@ -8,6 +8,7 @@ import { useCart, calculateCartTotal } from '../contexts/CartContext';
 import { useAuthSession } from '../contexts/AuthContext';
 import { criarPedido, validarPedido, formatarStatusPedido, formatarDataPedido } from '../api/pedido';
 import { toast } from '../hooks/use-toast';
+import { API_BASE_URL } from '../api/restaurante';
 
 const Carrinho = () => {
   const router = useRouter();
@@ -247,13 +248,13 @@ const Carrinho = () => {
       console.log('📤 === INICIANDO ENVIO DO PEDIDO ===');
       console.log('📤 Dados do pedido:', orderData);
       console.log('🔐 Método de autenticação:', session?.token ? 'JWT Token' : 'Cookies');
-      console.log('🌐 API_BASE_URL:', 'http://localhost:8080');
-      console.log('🔗 URL completa:', 'http://localhost:8080/pedidos');
+      console.log('🌐 API_BASE_URL:', API_BASE_URL);
+      console.log('🔗 URL completa:', `${API_BASE_URL}/pedidos`);
 
       // Teste direto da requisição
       console.log('🧪 === TESTE DIRETO DA REQUISIÇÃO ===');
       try {
-        const testResponse = await fetch('http://localhost:8080/pedidos', {
+        const testResponse = await fetch(`${API_BASE_URL}/pedidos`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

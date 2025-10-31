@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, ImageBackground, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, ImageBackground, Switch, ActivityIndicator } from 'react-native';
 import Input from '../components/Input';
 import { indexStyles } from '../style/indexStyles';
 import Header from '../components/Header';
@@ -162,15 +162,24 @@ const Cadastro = () => {
       setIsFetchingCep(true);
       setErro('');
       try {
+        console.log('🔍 Iniciando busca de CEP no componente:', digits);
         const endereco = await buscarEnderecoPorCep(digits);
+        console.log('✅ Endereço recebido:', endereco);
         setRua(endereco.rua || '');
         setBairro(endereco.bairro || '');
         setCidade(endereco.cidade || '');
         setEstado(endereco.estado || '');
       } catch (e: any) {
-        setErro(e?.message || 'Falha ao buscar CEP.');
+        console.error('❌ Erro ao buscar CEP no componente:', e);
+        const errorMessage = e?.message || 'Falha ao buscar CEP. Verifique sua conexão e tente novamente.';
+        setErro(errorMessage);
       } finally {
         setIsFetchingCep(false);
+      }
+    } else {
+      // Limpa campos se CEP não está completo
+      if (digits.length < 8) {
+        setErro('');
       }
     }
   };
@@ -306,13 +315,19 @@ const Cadastro = () => {
 
               {/* Terceira linha: CEP e Estado */}
               <View style={[cadastroStyles.formRow, { display: isMediumScreen ? 'flex' : 'none' }]}> 
-                <View style={cadastroStyles.formColumn}>
+                <View style={[cadastroStyles.formColumn, { position: 'relative' }]}>
                   <Input
                     label="CEP"
                     placeholder="Digite seu CEP"
                     value={cep}
                     onChangeText={tryAutoFillByCep}
+                    disabled={isFetchingCep}
                   />
+                  {isFetchingCep && (
+                    <View style={{ position: 'absolute', right: 12, top: '50%', marginTop: 22 }}>
+                      <ActivityIndicator size="small" color={colors.verdeFolha} />
+                    </View>
+                  )}
                 </View>
                 <View style={cadastroStyles.formColumn}>
                   <Input
@@ -398,13 +413,19 @@ const Cadastro = () => {
                     onChangeText={setEmail}
                   />
                 </View>
-                <View style={{ width: '100%', marginBottom: 10 }}>
+                <View style={{ width: '100%', marginBottom: 10, position: 'relative' }}>
                   <Input
                     label="CEP"
                     placeholder="Digite seu CEP"
                     value={cep}
                     onChangeText={tryAutoFillByCep}
+                    disabled={isFetchingCep}
                   />
+                  {isFetchingCep && (
+                    <View style={{ position: 'absolute', right: 12, top: '50%', marginTop: 22 }}>
+                      <ActivityIndicator size="small" color={colors.verdeFolha} />
+                    </View>
+                  )}
                 </View>
                 <View style={{ width: '100%', marginBottom: 10 }}>
                   <Input

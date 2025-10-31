@@ -1,5 +1,5 @@
 // API para avaliações de pratos
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+import { API_BASE_URL } from './restaurante';
 
 // Importar getSessao para identificar o cliente logado
 import { getSessao } from './cliente';

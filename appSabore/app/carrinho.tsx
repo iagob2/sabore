@@ -152,7 +152,9 @@ const Carrinho = () => {
     console.log('🚀 === INICIANDO FINALIZAÇÃO DO PEDIDO ===');
     console.log('📦 Itens no carrinho:', carrinho.length);
     console.log('🔐 Usuário autenticado:', isAuthenticated);
+    console.log('👤 Session completa:', session);
     console.log('🎫 Token presente:', !!session?.token);
+    console.log('🍪 Usando cookies:', !!session?.useCookies);
     
     // Verificar se carrinho não está vazio
     if (carrinho.length === 0) {
@@ -161,12 +163,19 @@ const Carrinho = () => {
       return;
     }
 
-    // Verificar se usuário está autenticado
-    if (!isAuthenticated) {
+    // Verificar se usuário está autenticado (com verificação mais rigorosa)
+    if (!isAuthenticated || (!session?.token && !session?.useCookies)) {
       console.log('❌ Usuário não autenticado - parando execução');
+      console.log('🔍 Detalhes da sessão:', {
+        session: session,
+        isAuthenticated: isAuthenticated,
+        hasToken: !!session?.token,
+        useCookies: !!session?.useCookies
+      });
+      
       Alert.alert(
         'Login Necessário', 
-        'Você precisa estar logado para fazer pedidos.',
+        'Você precisa estar logado para fazer pedidos.\n\nSua sessão pode ter expirado. Por favor, faça login novamente.',
         [
           { text: 'Cancelar', style: 'cancel' },
           { 
@@ -209,7 +218,8 @@ const Carrinho = () => {
     console.log('📋 Dados para confirmação:', {
       restaurante: restauranteNome,
       itens: carrinho.length,
-      total: calcularTotal().toFixed(2)
+      total: calcularTotal().toFixed(2),
+      autenticacao: session?.token ? 'JWT Token' : session?.useCookies ? 'Cookies' : 'Nenhuma'
     });
     
     // Usar modal customizado em vez de Alert.alert
@@ -237,9 +247,23 @@ const Carrinho = () => {
     console.log('🚀 === FUNÇÃO ENVIAR PEDIDO CHAMADA ===');
     console.log('🔐 isAuthenticated:', isAuthenticated);
     console.log('👤 session:', session);
+    console.log('📧 Email na sessão:', session?.email);
+    console.log('🍪 Usando cookies:', session?.useCookies);
+    console.log('🎫 Tem token:', !!session?.token);
     
     if (!isAuthenticated) {
       console.log('❌ Não autenticado - saindo da função');
+      Alert.alert(
+        'Login Necessário',
+        'Você precisa estar logado para fazer pedidos.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Fazer Login', 
+            onPress: () => router.push('/login')
+          }
+        ]
+      );
       return;
     }
 
@@ -251,41 +275,7 @@ const Carrinho = () => {
       console.log('🌐 API_BASE_URL:', API_BASE_URL);
       console.log('🔗 URL completa:', `${API_BASE_URL}/pedidos`);
 
-      // Teste direto da requisição
-      console.log('🧪 === TESTE DIRETO DA REQUISIÇÃO ===');
-      try {
-        const testResponse = await fetch(`${API_BASE_URL}/pedidos`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(orderData),
-        });
-        
-        console.log('🧪 Status do teste direto:', testResponse.status);
-        console.log('🧪 Headers do teste:', Object.fromEntries(testResponse.headers.entries()));
-        
-        if (testResponse.ok) {
-          const responseData = await testResponse.json();
-          console.log('🧪 ✅ Teste direto funcionou!', responseData);
-          
-          // Limpar carrinho
-          clearCart();
-          
-          // Mostrar sucesso
-          Alert.alert('Pedido Criado!', `Pedido #${responseData.id} criado com sucesso!`);
-          return;
-        } else {
-          const errorText = await testResponse.text();
-          console.log('🧪 ❌ Erro no teste direto:', errorText);
-        }
-      } catch (testError) {
-        console.log('🧪 ❌ Erro na requisição de teste:', testError);
-      }
-
-      // Se o teste direto falhar, tentar com a função original
-      console.log('🔄 Tentando com função original...');
+      // Chamar função de criação de pedido
       const pedidoCriado = await criarPedido(orderData, session?.token);
       
       console.log('✅ Pedido criado com sucesso:', pedidoCriado);
@@ -314,12 +304,30 @@ const Carrinho = () => {
     } catch (error) {
       console.error('❌ Erro ao enviar pedido:', error);
       
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao criar pedido';
+      let errorMessage = 'Erro desconhecido ao criar pedido';
+      let showLoginOption = false;
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Verificar se é erro de autenticação
+        if (errorMessage.includes('não autorizada') || 
+            errorMessage.includes('Sessão expirada') ||
+            errorMessage.includes('401')) {
+          showLoginOption = true;
+        }
+      }
       
       Alert.alert(
         'Erro ao Finalizar Pedido',
         errorMessage,
-        [{ text: 'OK' }]
+        showLoginOption ? [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Fazer Login', 
+            onPress: () => router.push('/login')
+          }
+        ] : [{ text: 'OK' }]
       );
       
       toast({

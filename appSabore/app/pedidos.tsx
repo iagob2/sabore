@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, Image, Modal } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, Image, Modal, AppState, AppStateStatus } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Header from '../components/Header';
 import { indexStyles } from '../style/indexStyles';
 import { colors } from '../style/colors';
@@ -50,6 +50,11 @@ const Pedidos = () => {
   // Estado para modal de confirmação de avaliação do restaurante
   const [modalConfirmacaoRestauranteVisible, setModalConfirmacaoRestauranteVisible] = useState(false);
 
+  // Referências para controle de polling
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const isPollingEnabledRef = useRef(true);
+
   // Carregar pedidos quando o componente montar
   useEffect(() => {
     if (isAuthenticated) {
@@ -57,16 +62,97 @@ const Pedidos = () => {
     }
   }, [isAuthenticated]);
 
+  // Atualizar pedidos quando a tela ganhar foco
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('👀 Tela de pedidos ganhou foco - atualizando...');
+      isPollingEnabledRef.current = true;
+      
+      if (isAuthenticated) {
+        carregarPedidos();
+      }
+      
+      // Iniciar polling periódico (a cada 30 segundos)
+      iniciarPolling();
+      
+      // Cleanup quando a tela perder foco
+      return () => {
+        console.log('👋 Tela de pedidos perdeu foco - parando polling...');
+        pararPolling();
+      };
+    }, [isAuthenticated])
+  );
+
+  // Monitorar estado da aplicação (background/foreground)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      console.log('📱 Estado da app mudou:', appStateRef.current, '->', nextAppState);
+      
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App voltou ao foreground
+        console.log('✅ App voltou ao foreground - atualizando pedidos...');
+        isPollingEnabledRef.current = true;
+        if (isAuthenticated) {
+          carregarPedidos();
+          iniciarPolling();
+        }
+      } else if (nextAppState.match(/inactive|background/)) {
+        // App foi para background
+        console.log('⏸️ App foi para background - pausando polling...');
+        isPollingEnabledRef.current = false;
+        pararPolling();
+      }
+      
+      appStateRef.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+      pararPolling();
+    };
+  }, [isAuthenticated]);
+
+  // Função para iniciar polling periódico
+  const iniciarPolling = () => {
+    // Limpar intervalo existente se houver
+    pararPolling();
+    
+    if (!isAuthenticated || !isPollingEnabledRef.current) {
+      return;
+    }
+    
+    console.log('🔄 Iniciando polling de pedidos (a cada 30 segundos)...');
+    
+    pollingIntervalRef.current = setInterval(() => {
+      if (isPollingEnabledRef.current && isAuthenticated) {
+        console.log('🔄 Polling automático: verificando atualizações de pedidos...');
+        carregarPedidos();
+      }
+    }, 30000); // 30 segundos
+  };
+
+  // Função para parar polling
+  const pararPolling = () => {
+    if (pollingIntervalRef.current) {
+      console.log('⏹️ Parando polling de pedidos...');
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
   // Função para carregar pedidos
-  const carregarPedidos = async () => {
+  const carregarPedidos = async (silent: boolean = false) => {
     if (!isAuthenticated) {
       setLoading(false);
       return;
     }
 
     try {
-      console.log('📋 Carregando pedidos do cliente...');
+      if (!silent) {
+        console.log('📋 Carregando pedidos do cliente...');
+      }
       console.log('🔐 Método de autenticação:', session?.token ? 'JWT Token' : 'Cookies');
+      
       const pedidosData = await buscarPedidosCliente(session?.token);
       
       // Ordenar por data (mais recentes primeiro)
@@ -74,14 +160,47 @@ const Pedidos = () => {
         new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
       );
       
+      // Verificar se houve mudanças de status (para notificar usuário)
+      if (!silent && pedidos.length > 0) {
+        const mudancasStatus = pedidosOrdenados.filter((novoPedido, index) => {
+          const pedidoAntigo = pedidos.find(p => p.id === novoPedido.id);
+          return pedidoAntigo && pedidoAntigo.status !== novoPedido.status;
+        });
+        
+        if (mudancasStatus.length > 0) {
+          console.log('🔔 Mudanças de status detectadas:', mudancasStatus.length);
+          mudancasStatus.forEach(pedido => {
+            const statusAnterior = pedidos.find(p => p.id === pedido.id)?.status;
+            console.log(`📊 Pedido #${pedido.id}: ${statusAnterior} -> ${pedido.status}`);
+            
+            // Mostrar notificação apenas para mudanças relevantes
+            if (pedido.status === 'CONCLUIDO') {
+              toast({
+                title: "Pedido Concluído! 🎉",
+                description: `O pedido #${pedido.id} foi concluído!`,
+              });
+            } else if (pedido.status === 'EM_PREPARO' && statusAnterior === 'NOVO') {
+              toast({
+                title: "Pedido em Preparo! 👨‍🍳",
+                description: `O pedido #${pedido.id} começou a ser preparado.`,
+              });
+            }
+          });
+        }
+      }
+      
       setPedidos(pedidosOrdenados);
-      console.log('✅ Pedidos carregados:', pedidosOrdenados.length);
+      if (!silent) {
+        console.log('✅ Pedidos carregados:', pedidosOrdenados.length);
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar pedidos:', error);
-      toast({
-        title: "Erro ao Carregar Pedidos",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-      });
+      if (!silent) {
+        toast({
+          title: "Erro ao Carregar Pedidos",
+          description: error instanceof Error ? error.message : "Erro desconhecido",
+        });
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,7 +210,7 @@ const Pedidos = () => {
   // Função para atualizar pedidos (pull to refresh)
   const onRefresh = () => {
     setRefreshing(true);
-    carregarPedidos();
+    carregarPedidos(false); // Não silencioso quando usuário puxa para atualizar
   };
 
   // Função para cancelar pedido (apenas se estiver com status NOVO)
@@ -130,14 +249,8 @@ const Pedidos = () => {
       
       await atualizarStatusPedido(pedidoId, novoStatus, session?.token);
       
-      // Atualizar lista local
-      setPedidos(prev => 
-        prev.map(pedido => 
-          pedido.id === pedidoId 
-            ? { ...pedido, status: novoStatus as any }
-            : pedido
-        )
-      );
+      // Recarregar pedidos para garantir que está sincronizado com o backend
+      await carregarPedidos(true); // Silencioso - não mostrar notificações duplicadas
       
       toast({
         title: "Status Atualizado!",

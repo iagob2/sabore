@@ -62,16 +62,24 @@ export const criarPedido = async (pedido: PedidoRequest, token?: string): Promis
   console.log('📦 Quantidade de itens:', pedido.itens.length);
   console.log('📋 Dados do pedido:', JSON.stringify(pedido, null, 2));
   console.log('🔑 Token:', token ? 'Presente' : 'Ausente (usando cookies)');
+  console.log('🌐 API_BASE_URL:', API_BASE_URL);
+  console.log('🔗 URL completa:', `${API_BASE_URL}/pedidos`);
 
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json', // Garantir que esperamos JSON
     };
 
     // Se tiver token, usar Authorization header, senão usar cookies
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+      console.log('✅ Usando Authorization header com token');
+    } else {
+      console.log('✅ Usando cookies para autenticação');
     }
+    
+    console.log('📤 Headers sendo enviados:', headers);
 
     const response = await fetch(`${API_BASE_URL}/pedidos`, {
       method: 'POST',
@@ -82,26 +90,91 @@ export const criarPedido = async (pedido: PedidoRequest, token?: string): Promis
 
     console.log('📡 Status da resposta:', response.status);
     console.log('📡 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+    console.log('📡 Content-Type:', response.headers.get('content-type'));
+
+    // Ler o corpo da resposta como texto primeiro para análise
+    const responseText = await response.text();
+    console.log('📄 Corpo da resposta (primeiros 500 chars):', responseText.substring(0, 500));
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Erro na resposta:', errorText);
+      const contentType = response.headers.get('content-type') || '';
       
-      let errorMessage = 'Erro ao criar pedido';
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.message || errorJson.error || errorMessage;
-      } catch (e) {
-        errorMessage = errorText || errorMessage;
+      // Verificar se a resposta é HTML (erro do Spring Security)
+      if (contentType.includes('text/html') || responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        console.error('❌ Erro HTML retornado (página de erro do servidor):', responseText.substring(0, 200));
+        
+        // Mensagens de erro baseadas no status
+        if (response.status === 401) {
+          throw new Error('Sessão expirada ou não autorizada. Por favor, faça login novamente.');
+        } else if (response.status === 403) {
+          throw new Error('Acesso negado. Você não tem permissão para realizar esta ação.');
+        } else if (response.status === 400) {
+          throw new Error('Dados do pedido inválidos. Verifique os itens e tente novamente.');
+        } else {
+          throw new Error(`Erro ao criar pedido (${response.status}). Tente novamente ou faça login.`);
+        }
+      } else {
+        // Tentar parsear como JSON
+        let errorMessage = 'Erro ao criar pedido';
+        
+        try {
+          const errorJson = JSON.parse(responseText);
+          errorMessage = errorJson.message || errorJson.error || errorMessage;
+          console.error('❌ Erro JSON da resposta:', errorJson);
+        } catch (e) {
+          // Se não for JSON, usar o texto como está (limitado)
+          console.error('❌ Erro não-JSON na resposta:', responseText.substring(0, 200));
+          if (response.status === 401) {
+            errorMessage = 'Sessão expirada ou não autorizada. Por favor, faça login novamente.';
+          } else if (response.status === 400) {
+            errorMessage = 'Dados do pedido inválidos. Verifique os itens e tente novamente.';
+          } else if (responseText && responseText.length < 500) {
+            errorMessage = responseText;
+          } else {
+            errorMessage = `Erro ao criar pedido (${response.status})`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
-      
-      throw new Error(errorMessage);
     }
 
-    const pedidoCriado = await response.json();
-    console.log('✅ Pedido criado com sucesso:', pedidoCriado);
+    // Se a resposta foi OK, verificar o conteúdo
+    const contentType = response.headers.get('content-type') || '';
     
-    return pedidoCriado;
+    // Se não há conteúdo ou está vazio
+    if (!responseText || responseText.trim().length === 0) {
+      console.error('❌ Resposta vazia do servidor');
+      throw new Error('Resposta do servidor vazia. Tente novamente.');
+    }
+    
+    // Verificar se é HTML (mesmo com status OK, pode ser redirecionamento do Spring Security)
+    if (contentType.includes('text/html') || 
+        responseText.trim().startsWith('<!DOCTYPE') || 
+        responseText.trim().startsWith('<html') ||
+        responseText.trim().startsWith('<!') ||
+        responseText.toLowerCase().includes('<body>')) {
+      console.error('❌ Resposta OK mas retornou HTML (redirecionamento do Spring Security):', responseText.substring(0, 300));
+      throw new Error('Sessão expirada ou não autorizada. Por favor, faça login novamente.');
+    }
+    
+    // Tentar parsear como JSON
+    try {
+      const pedidoCriado = JSON.parse(responseText);
+      console.log('✅ Pedido criado com sucesso:', pedidoCriado);
+      return pedidoCriado;
+    } catch (e) {
+      console.error('❌ Erro ao fazer parse do JSON:', e);
+      console.error('📄 Conteúdo recebido (primeiros 500 chars):', responseText.substring(0, 500));
+      console.error('📄 Content-Type informado:', contentType);
+      
+      // Se o erro de parse é específico, tentar mensagem mais útil
+      if (e instanceof SyntaxError) {
+        throw new Error('Resposta do servidor não está em formato JSON válido. Sua sessão pode ter expirado - faça login novamente.');
+      } else {
+        throw new Error('Resposta do servidor em formato inesperado. Tente novamente ou faça login.');
+      }
+    }
   } catch (error) {
     console.error('❌ Erro ao criar pedido:', error);
     

@@ -101,24 +101,69 @@ async function request<T>(path: string, options?: { method?: HttpMethod; body?: 
 }
 
 // Autenticação
-// Login padrão Spring Security (formLogin em POST /login)
+// Login usando endpoint customizado do backend: POST /clientes/login
 export async function loginCliente(payload: LoginRequest): Promise<void> {
-  const form = new URLSearchParams();
-  form.set('username', payload.email);
-  form.set('password', payload.senha);
+  console.log('🔐 === INICIANDO LOGIN ===');
+  console.log('📧 Email:', payload.email);
+  console.log('🌐 API_BASE_URL:', API_BASE_URL);
+  console.log('🔗 URL completa:', `${API_BASE_URL}/clientes/login`);
 
-  const response = await fetch(`${API_BASE_URL}/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: form.toString(),
-    credentials: 'include',
-    redirect: 'follow',
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/clientes/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        email: payload.email,
+        senha: payload.senha,
+      }),
+      credentials: 'include', // Importante para receber cookies JSESSIONID
+    });
 
-  if (!response.ok && response.status !== 204) {
-    throw new Error('Falha no login.');
+    console.log('📡 Status da resposta:', response.status);
+    console.log('📡 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      let errorMessage = 'Falha no login.';
+      
+      // Tentar ler mensagem de erro do backend
+      try {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } else {
+          const errorText = await response.text();
+          if (errorText && !errorText.startsWith('<!')) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (e) {
+        // Se não conseguir ler erro, usar mensagem padrão
+        console.warn('⚠️ Não foi possível ler mensagem de erro:', e);
+      }
+      
+      console.error('❌ Erro no login:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Login bem-sucedido
+    const data = await response.json();
+    console.log('✅ Login realizado com sucesso:', data);
+    
+    // Verificar se recebeu cookie JSESSIONID (será enviado automaticamente pelo servidor)
+    console.log('🍪 Verificando se cookie JSESSIONID foi recebido...');
+    
+    // O cookie será armazenado automaticamente pelo navegador devido ao credentials: 'include'
+    return;
+  } catch (error) {
+    console.error('❌ Erro ao fazer login:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Erro desconhecido ao fazer login.');
   }
 }
 

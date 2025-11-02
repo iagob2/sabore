@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { colors } from '../style/colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { listarRestaurantes, RestauranteResponse } from '../api/restaurante';
+import { listarRestaurantes, RestauranteResponse, API_BASE_URL } from '../api/restaurante';
 
 const Index = () => {
   const [name, setName] = useState('');
@@ -83,9 +83,18 @@ const Index = () => {
 
   // Função para adaptar dados da API para o formato dos cards
   const adaptarRestauranteParaCard = (restaurante: RestauranteResponse, index: number = 0) => {
-    const logoUrl = restaurante.logoUrl?.trim();
-    const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
-    const imagemPadrao = imagensPadrao[restaurante.id % imagensPadrao.length];
+    let logoUrl = restaurante.logoUrl?.trim();
+    
+    // Se a URL não começa com http/https, construir com API_BASE_URL
+    if (logoUrl && !logoUrl.startsWith('http://') && !logoUrl.startsWith('https://')) {
+      // Remove barras iniciais duplicadas e constrói URL completa
+      const path = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+      logoUrl = `${API_BASE_URL}${path}`;
+    }
+    
+    const temLogoValida = logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'));
+    // Usar index ao invés de ID para manter consistência com a ordem recebida
+    const imagemPadrao = imagensPadrao[index % imagensPadrao.length];
     
     // Gerar dados aleatórios para demonstração
     const deliveryTimes = ['20-30 min', '30-45 min', '15-25 min', '25-35 min'];
@@ -94,7 +103,7 @@ const Index = () => {
     
     return {
       id: restaurante.id.toString(),
-      imageUrl: temLogoValida ? { uri: logoUrl } : imagemPadrao,
+      imageUrl: temLogoValida ? logoUrl : imagemPadrao, // Passa string ou número diretamente
       name: restaurante.nome,
       rating: 4.0 + (Math.random() * 0.9), // Rating entre 4.0 e 4.9
       subtitle: restaurante.descricao || 'Deliciosos pratos esperando por você',
@@ -205,9 +214,18 @@ const Index = () => {
 
   // Criar ofertas dinâmicas baseadas nos restaurantes da API
   const ofertasDinamicas = restaurantes.slice(0, 4).map((restaurante, index) => {
-    const logoUrl = restaurante.logoUrl?.trim();
-    const temLogoValida = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'));
-    const imagemPadrao = imagensPadrao[restaurante.id % imagensPadrao.length];
+    let logoUrl = restaurante.logoUrl?.trim();
+    
+    // Se a URL não começa com http/https, construir com API_BASE_URL
+    if (logoUrl && !logoUrl.startsWith('http://') && !logoUrl.startsWith('https://')) {
+      // Remove barras iniciais duplicadas e constrói URL completa
+      const path = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+      logoUrl = `${API_BASE_URL}${path}`;
+    }
+    
+    const temLogoValida = logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'));
+    // Usar index ao invés de ID para manter consistência com a ordem recebida
+    const imagemPadrao = imagensPadrao[index % imagensPadrao.length];
     
     return {
       id: `api-${restaurante.id}`,
@@ -304,9 +322,13 @@ const Index = () => {
   };
 
   // Combinar dados da API com dados locais para fallback
+  // Garantir ordem consistente baseada no index
   const todosOsCards = [
-    // Dados da API adaptados
-    ...restaurantes.map((restaurante, index) => adaptarRestauranteParaCard(restaurante, index)),
+    // Dados da API adaptados - usando index para manter ordem consistente
+    ...restaurantes.map((restaurante, index) => {
+      console.log(`📸 Restaurante ${restaurante.nome} (ID: ${restaurante.id}, Index: ${index}) - Logo: ${restaurante.logoUrl}`);
+      return adaptarRestauranteParaCard(restaurante, index);
+    }),
     // Dados locais como fallback caso a API não funcione
     ...(restaurantes.length === 0 ? cardData : [])
   ];

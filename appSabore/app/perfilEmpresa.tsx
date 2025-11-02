@@ -369,8 +369,8 @@ const PerfilEmpresa = () => {
 
 
   // Função para adaptar item da API para formato do CardPrato
-  const adaptarItemParaCardPrato = (item: ItemRestauranteResponse) => {
-    console.log('🔄 Adaptando item:', item);
+  const adaptarItemParaCardPrato = (item: ItemRestauranteResponse, index: number = 0) => {
+    console.log(`🔄 Adaptando item ${index + 1} (ID: ${item.id}):`, item.nome);
     
     // Array de imagens padrão para variar - mapeamento inteligente por nome
     const imagensPadraoItem = [
@@ -385,7 +385,7 @@ const PerfilEmpresa = () => {
     ];
     
     // Mapeamento inteligente de pratos por nome
-    const getImagemEspecifica = (nomePrato: string) => {
+    const getImagemEspecifica = (nomePrato: string, itemIndex: number) => {
       const nome = nomePrato.toLowerCase();
       if (nome.includes('acarajé') || nome.includes('acaraje')) {
         return require('../assets/pratos/acaraje.png');
@@ -408,28 +408,33 @@ const PerfilEmpresa = () => {
       if (nome.includes('vinagrete') || nome.includes('salada')) {
         return require('../assets/pratos/salada.png');
       }
-      // Fallback baseado no ID para outros pratos
-      return imagensPadraoItem[item.id % imagensPadraoItem.length];
+      // Usar index ao invés de ID para manter consistência com a ordem recebida
+      return imagensPadraoItem[itemIndex % imagensPadraoItem.length];
     };
     
     // Selecionar imagem específica baseada no nome do prato
-    const imagemEspecifica = getImagemEspecifica(item.nome || '');
+    const imagemEspecifica = getImagemEspecifica(item.nome || '', index);
     let imageSource = imagemEspecifica;
     
-    console.log('🎯 Imagem selecionada para', item.nome, ':', typeof imageSource);
+    console.log(`🎯 Imagem padrão selecionada para ${item.nome} (index ${index}):`, typeof imageSource);
+    
+    // Processar imagemUrl do backend - sempre priorizar URL do banco se disponível
     if (item.imagemUrl && item.imagemUrl.trim() !== '') {
-      let urlCompleta = item.imagemUrl;
+      let urlCompleta = item.imagemUrl.trim();
       
       console.log('🖼️ Processando imagem do item:', item.nome);
-      console.log('🖼️ URL original:', item.imagemUrl);
+      console.log('🖼️ URL original do backend:', urlCompleta);
       
       // Se não é uma URL completa, construir com API_BASE_URL
-      if (!item.imagemUrl.startsWith('http://') && !item.imagemUrl.startsWith('https://')) {
-        urlCompleta = `${API_BASE_URL}${item.imagemUrl.startsWith('/') ? '' : '/'}${item.imagemUrl}`;
+      if (!urlCompleta.startsWith('http://') && !urlCompleta.startsWith('https://')) {
+        // Garantir que o caminho começa com / se não começar
+        const path = urlCompleta.startsWith('/') ? urlCompleta : `/${urlCompleta}`;
+        urlCompleta = `${API_BASE_URL}${path}`;
         console.log('🔗 URL construída com API_BASE_URL:', urlCompleta);
       }
+      
       // Forçar HTTP em vez de HTTPS para evitar problemas de certificado em desenvolvimento
-      else if (urlCompleta.startsWith('https://localhost') || urlCompleta.startsWith('https://127.0.0.1')) {
+      if (urlCompleta.startsWith('https://localhost') || urlCompleta.startsWith('https://127.0.0.1')) {
         urlCompleta = urlCompleta.replace('https://', 'http://');
         console.log('🔒 Convertendo HTTPS para HTTP:', urlCompleta);
       }
@@ -439,25 +444,26 @@ const PerfilEmpresa = () => {
         // Validar se a URL parece válida
         new URL(urlCompleta);
         
-        // Verificar se não é uma URL obviamente de exemplo
+        // Verificar se não é uma URL obviamente de exemplo (mas mesmo assim tentar carregar)
         const isExampleUrl = item.imagemUrl.includes('exemplo.com') || 
                             item.imagemUrl.includes('placeholder.com') ||
                             item.imagemUrl.includes('example.com');
         
         if (isExampleUrl) {
           console.log('🚫 URL de exemplo detectada, mas vamos tentar carregar mesmo assim:', urlCompleta);
-          // Mesmo sendo exemplo, vamos tentar - se falhar, o ImageWithFallback cuida
         }
         
         imageSource = { uri: urlCompleta };
-        console.log('✅ Usando URL da imagem:', urlCompleta);
+        console.log(`✅ Item ${item.nome}: Usando URL da imagem do backend:`, urlCompleta);
         
       } catch (e) {
         console.log('❌ URL da imagem inválida:', urlCompleta, 'Erro:', e);
-        console.log('🔄 Usando imagem padrão baseada no ID');
+        console.log(`🔄 Item ${item.nome}: Usando imagem padrão baseada no index ${index}`);
+        // imageSource já está definido como imagemEspecifica
       }
     } else {
-      console.log('⚠️ Item sem imagemUrl, usando imagem padrão baseada no ID');
+      console.log(`⚠️ Item ${item.nome} sem imagemUrl no backend, usando imagem padrão (index ${index})`);
+      // imageSource já está definido como imagemEspecifica
     }
     
     // Usar descricao como ingredientes se disponível
@@ -921,9 +927,11 @@ const PerfilEmpresa = () => {
   console.log('⭐ Médias carregadas:', mediasAvaliacoes);
   
   const pratosAdaptados = itensRestaurante.map((item, index) => {
-    console.log(`🔄 Adaptando item ${index + 1}:`, item);
-    const adaptado = adaptarItemParaCardPrato(item);
-    console.log(`✅ Item adaptado ${index + 1}:`, adaptado);
+    console.log(`📸 === Adaptando item ${index + 1} de ${itensRestaurante.length} ===`);
+    console.log(`🆔 Item ID: ${item.id}, Nome: ${item.nome}, Index: ${index}`);
+    console.log(`🖼️ imagemUrl original:`, item.imagemUrl);
+    const adaptado = adaptarItemParaCardPrato(item, index);
+    console.log(`✅ Item ${item.nome} adaptado com imagem:`, adaptado.imagem?.uri || 'local');
     return adaptado;
   });
   
@@ -969,29 +977,27 @@ const PerfilEmpresa = () => {
   console.log('⭐ Favoritos a exibir:', pratosFavoritosExibir.length);
   console.log('⚡ loadingItens:', loadingItens);
 
-  // Função para validar se URL de imagem é válida
-  const isValidImageUrl = (url: string | null | undefined): boolean => {
-    if (!url) return false;
+  // Função para construir URL completa da imagem
+  const construirUrlImagem = (url: string | null | undefined): string | null => {
+    if (!url) return null;
     const trimmedUrl = url.trim();
-    if (!trimmedUrl) return false;
+    if (!trimmedUrl) return null;
     
-    // Verificar se é uma URL válida
-    const isValidUrl = trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
+    // Se já é uma URL completa, retornar como está
+    if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+      return trimmedUrl;
+    }
     
-    // Verificar se parece ser uma URL de imagem
-    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(trimmedUrl);
-    const isImageUrl = isValidUrl && (hasImageExtension || trimmedUrl.includes('/upload/') || trimmedUrl.includes('/images/'));
+    // Se é um caminho relativo, construir com API_BASE_URL
+    const path = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    const urlCompleta = `${API_BASE_URL}${path}`;
     
-    // Log para debug
-    console.log(`🖼️ Validando imagem:`, {
-      url: trimmedUrl,
-      isValidUrl,
-      hasImageExtension,
-      isImageUrl,
-      length: trimmedUrl.length
+    console.log(`🔗 Construindo URL de imagem:`, {
+      original: trimmedUrl,
+      final: urlCompleta
     });
     
-    return isImageUrl;
+    return urlCompleta;
   };
 
   // Array de imagens padrão para variar entre restaurantes
@@ -1024,9 +1030,15 @@ const PerfilEmpresa = () => {
     },
     // Endereço formatado
     endereco: [empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ') || 'Endereço não informado',
-    // Imagens com validação e fallback melhorados
-    banner: isValidImageUrl(empresa.bannerUrl) ? { uri: empresa.bannerUrl } : imagemPadrao,
-    logo: isValidImageUrl(empresa.logoUrl) ? { uri: empresa.logoUrl } : imagemPadrao,
+    // Imagens com construção correta de URLs
+    banner: (() => {
+      const urlCompleta = construirUrlImagem(empresa.bannerUrl);
+      return urlCompleta ? { uri: urlCompleta } : imagemPadrao;
+    })(),
+    logo: (() => {
+      const urlCompleta = construirUrlImagem(empresa.logoUrl);
+      return urlCompleta ? { uri: urlCompleta } : imagemPadrao;
+    })(),
     // Textos informativos (não existem no backend, usar padrões)
     funcionamento: empresa.descricao || 'Restaurante com comida de qualidade e atendimento especial.',
     acusticos: 'Consulte nossos eventos especiais nas redes sociais.',

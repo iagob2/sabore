@@ -215,8 +215,6 @@ export const indexStyles = StyleSheet.create({
     paddingVertical: isSmallScreen ? 24 : 32,
     paddingHorizontal: isSmallScreen ? 16 : 20,
     marginTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: colors.cinzaClaro,
     width: '100%',
   },
   footerContent: {

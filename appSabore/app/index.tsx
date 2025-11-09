@@ -418,7 +418,7 @@ const Index = () => {
                   <View style={{
                     position: 'absolute',
                     top: 16,
-                    right: 16,
+                    right: 36,
                     backgroundColor: colors.overlayEscuro,
                     paddingHorizontal: 10,
                     paddingVertical: 6,
@@ -548,7 +548,7 @@ const Index = () => {
             <View style={{ alignItems: 'center' }}>
               <View style={{ width: searchInputWidth, alignSelf: 'center' }}>
                 <Input
-                  placeholder="Pesquise por nome, especialidade ou prato..."
+                  placeholder="Pesquise pelo nome"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   icon="search"
@@ -692,10 +692,9 @@ const Index = () => {
     
         {/* Footer */}
         <View style={indexStyles.footerContainer}>
-                  
           <View style={indexStyles.footerBottom}>
             <Text style={indexStyles.footerCopyright}>
-              © 2024 Saborê - Todos os direitos reservados | Desenvolvido com ❤️ no Brasil
+              © 2025 Saborê - Todos os direitos reservados | Desenvolvido com ❤️ no Brasil
             </Text>
           </View>
         </View>

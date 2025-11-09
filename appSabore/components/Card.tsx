@@ -20,6 +20,7 @@ interface CardProps {
   deliveryFee?: string;
   distance?: string;
   hasPromotion?: boolean;
+  variant?: 'default' | 'compact';
 }
 
 const Card: React.FC<CardProps> = ({
@@ -34,12 +35,16 @@ const Card: React.FC<CardProps> = ({
   deliveryTime,
   deliveryFee,
   distance,
-  hasPromotion = false
+  hasPromotion = false,
+  variant = 'default'
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const animScaleX = useRef(new Animated.Value(1)).current;
   const [isAnimating, setIsAnimating] = useState(false);
+  const isCompact = variant === 'compact';
+  const starSize = isCompact ? 16 : 18;
+  const infoIconSize = isCompact ? 12 : 14;
 
   const handleCardClick = () => {
     if (!interactive || isAnimating) return;
@@ -67,16 +72,21 @@ const Card: React.FC<CardProps> = ({
         activeOpacity={interactive ? 0.85 : 1}
         style={[
           cardStyles.card,
+          isCompact && cardStyles.cardCompact,
           transparent && cardStyles.cardTransparent,
           interactive && cardStyles.cardInteractive,
-          isHovered && cardStyles.cardHovered
+          isHovered && cardStyles.cardHovered,
+          isHovered && isCompact && cardStyles.cardHoveredCompact
         ]}
         onPress={handleCardClick}
         disabled={!interactive || isAnimating}
         {...hoverProps}
       >
         {/* Imagem */}
-        <View style={cardStyles.imageContainer}>
+        <View style={[
+          cardStyles.imageContainer,
+          isCompact && cardStyles.imageContainerCompact
+        ]}>
           <Image
             source={typeof imageUrl === 'string' && imageUrl ? { uri: imageUrl } : (imageUrl as number)}
             style={[
@@ -89,61 +99,130 @@ const Card: React.FC<CardProps> = ({
           <View style={cardStyles.gradient} />
           
           {/* Badges - apenas promoções */}
-          <View style={cardStyles.badgeContainer}>
+          <View style={[
+            cardStyles.badgeContainer,
+            isCompact && cardStyles.badgeContainerCompact
+          ]}>
             {hasPromotion && (
-              <View style={[cardStyles.badge, { backgroundColor: colors.rosaPromocao }]}>
-                <Text style={cardStyles.badgeText}>Promo</Text>
+              <View style={[
+                cardStyles.badge,
+                isCompact && cardStyles.badgeCompact,
+                { backgroundColor: colors.rosaPromocao }
+              ]}>
+                <Text style={[
+                  cardStyles.badgeText,
+                  isCompact && cardStyles.badgeTextCompact
+                ]}>
+                  Promo
+                </Text>
               </View>
             )}
           </View>
         </View>
 
         {/* Conteúdo */}
-        <View style={cardStyles.content}>
+        <View style={[
+          cardStyles.content,
+          isCompact && cardStyles.contentCompact
+        ]}>
           <View>
-            <View style={cardStyles.titleContainer}>
-              <Text style={cardStyles.title} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
+            <View style={[
+              cardStyles.titleContainer,
+              isCompact && cardStyles.titleContainerCompact
+            ]}>
+              <Text
+                style={[
+                  cardStyles.title,
+                  isCompact && cardStyles.titleCompact
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {name}
+              </Text>
             </View>
             {subtitle && (
-              <View style={cardStyles.descriptionContainer}>
-                <Text style={cardStyles.subtitle} numberOfLines={2} ellipsizeMode="tail">{subtitle}</Text>
+              <View style={[
+                cardStyles.descriptionContainer,
+                isCompact && cardStyles.descriptionContainerCompact
+              ]}>
+                <Text
+                  style={[
+                    cardStyles.subtitle,
+                    isCompact && cardStyles.subtitleCompact
+                  ]}
+                  numberOfLines={isCompact ? 2 : 2}
+                  ellipsizeMode="tail"
+                >
+                  {subtitle}
+                </Text>
               </View>
             )}
           </View>
 
           {/* Informações adicionais */}
           {(deliveryTime || deliveryFee || distance) && (
-            <View style={cardStyles.infoRow}>
+            <View style={[
+              cardStyles.infoRow,
+              isCompact && cardStyles.infoRowCompact
+            ]}>
               {deliveryTime && (
                 <View style={cardStyles.infoItem}>
-                  <MaterialIcons name="access-time" size={14} color={colors.cinzaMedio} />
-                  <Text style={cardStyles.infoText}>{deliveryTime}</Text>
+                  <MaterialIcons name="access-time" size={infoIconSize} color={colors.cinzaMedio} />
+                  <Text style={[
+                    cardStyles.infoText,
+                    isCompact && cardStyles.infoTextCompact
+                  ]}>
+                    {deliveryTime}
+                  </Text>
                 </View>
               )}
               {deliveryFee && (
                 <View style={cardStyles.infoItem}>
-                  <MaterialIcons name="local-shipping" size={14} color={colors.cinzaMedio} />
-                  <Text style={cardStyles.infoText}>{deliveryFee}</Text>
+                  <MaterialIcons name="local-shipping" size={infoIconSize} color={colors.cinzaMedio} />
+                  <Text style={[
+                    cardStyles.infoText,
+                    isCompact && cardStyles.infoTextCompact
+                  ]}>
+                    {deliveryFee}
+                  </Text>
                 </View>
               )}
               {distance && (
                 <View style={cardStyles.infoItem}>
-                  <MaterialIcons name="location-on" size={14} color={colors.cinzaMedio} />
-                  <Text style={cardStyles.infoText}>{distance}</Text>
+                  <MaterialIcons name="location-on" size={infoIconSize} color={colors.cinzaMedio} />
+                  <Text style={[
+                    cardStyles.infoText,
+                    isCompact && cardStyles.infoTextCompact
+                  ]}>
+                    {distance}
+                  </Text>
                 </View>
               )}
             </View>
           )}
 
           <View>
-            <View style={cardStyles.ratingRow}>
-              <StarRating rating={rating} size={18} />
+            <View style={[
+              cardStyles.ratingRow,
+              isCompact && cardStyles.ratingRowCompact
+            ]}>
+              <StarRating rating={rating} size={starSize} />
               <View style={{ flex: 1 }} />
-              <Text style={cardStyles.ratingValue}>{rating.toFixed(1)}</Text>
+              <Text style={[
+                cardStyles.ratingValue,
+                isCompact && cardStyles.ratingValueCompact
+              ]}>
+                {rating.toFixed(1)}
+              </Text>
             </View>
           </View>
         </View>
-        <View style={[cardStyles.borderGlow, isHovered && cardStyles.borderGlowHovered]} />
+        <View style={[
+          cardStyles.borderGlow,
+          isCompact && cardStyles.borderGlowCompact,
+          isHovered && cardStyles.borderGlowHovered
+        ]} />
       </TouchableOpacity>
     </Animated.View>
   );

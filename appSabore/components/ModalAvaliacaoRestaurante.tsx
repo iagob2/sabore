@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  Platform,
+  useWindowDimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { colors } from '../style/colors';
 import StarRating from './StarRating';
@@ -36,6 +39,11 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
   const [nota, setNota] = useState(0);
   const [comentario, setComentario] = useState('');
   const [loading, setLoading] = useState(false);
+  const { width, height } = useWindowDimensions();
+
+  const isSmallScreen = width <= 380;
+  const isTablet = width >= 768;
+  const isShortScreen = height <= 680;
 
   const handleSubmit = async () => {
     if (nota === 0) {
@@ -101,22 +109,56 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalContainer,
+              (isSmallScreen || !isTablet) && styles.modalContainerMobile,
+              isShortScreen && styles.modalContainerShort
+            ]}
+          >
           <ScrollView 
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              (isSmallScreen || !isTablet) && styles.scrollContentMobile
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>⭐ Avaliar Restaurante</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <View style={[
+              styles.header,
+              (isSmallScreen || !isTablet) && styles.headerMobile
+            ]}>
+              <Text style={[
+                styles.title,
+                (isSmallScreen || !isTablet) && styles.titleMobile
+              ]}>
+                ⭐ Avaliar Restaurante
+              </Text>
+              <TouchableOpacity
+                onPress={handleClose}
+                style={[
+                  styles.closeButton,
+                  (isSmallScreen || !isTablet) && styles.closeButtonMobile
+                ]}
+                accessibilityLabel="Fechar modal de avaliação"
+              >
                 <Text style={styles.closeButtonText}>✕</Text>
               </TouchableOpacity>
             </View>
 
             {/* Informações do Restaurante */}
-            <View style={styles.restauranteInfo}>
-              <View style={styles.restauranteHeader}>
+            <View style={[
+              styles.restauranteInfo,
+              (isSmallScreen || !isTablet) && styles.restauranteInfoMobile
+            ]}>
+              <View style={[
+                styles.restauranteHeader,
+                isSmallScreen && styles.restauranteHeaderMobile
+              ]}>
                 {restaurante.logoUrl ? (
                   <Image 
                     source={{ uri: restaurante.logoUrl }} 
@@ -128,10 +170,23 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
                     <Text style={styles.logoText}>🏪</Text>
                   </View>
                 )}
-                <View style={styles.restauranteDetails}>
-                  <Text style={styles.restauranteNome}>{restaurante.nome}</Text>
+                <View style={[
+                  styles.restauranteDetails,
+                  isSmallScreen && styles.restauranteDetailsMobile
+                ]}>
+                  <Text style={[
+                    styles.restauranteNome,
+                    isSmallScreen && styles.restauranteNomeMobile
+                  ]}>
+                    {restaurante.nome}
+                  </Text>
                   {restaurante.descricao && (
-                    <Text style={styles.restauranteDescricao}>{restaurante.descricao}</Text>
+                    <Text style={[
+                      styles.restauranteDescricao,
+                      isSmallScreen && styles.restauranteDescricaoMobile
+                    ]}>
+                      {restaurante.descricao}
+                    </Text>
                   )}
                 </View>
               </View>
@@ -139,12 +194,17 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
 
             {/* Avaliação por Estrelas */}
             <View style={styles.ratingSection}>
-              <Text style={styles.sectionTitle}>Como foi sua experiência?</Text>
+              <Text style={[
+                styles.sectionTitle,
+                (isSmallScreen || !isTablet) && styles.sectionTitleMobile
+              ]}>
+                Como foi sua experiência?
+              </Text>
               <View style={styles.starContainer}>
                 <StarRating
                   rating={nota}
                   onRatingChange={setNota}
-                  size={40}
+                  size={isSmallScreen ? 32 : 40}
                   interactive={true}
                 />
               </View>
@@ -164,7 +224,10 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
                 Comentário (opcional)
               </Text>
               <TextInput
-                style={styles.commentInput}
+                style={[
+                  styles.commentInput,
+                  (isSmallScreen || !isTablet) && styles.commentInputMobile
+                ]}
                 value={comentario}
                 onChangeText={setComentario}
                 placeholder="Conte-nos mais sobre sua experiência..."
@@ -180,13 +243,25 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
             </View>
 
             {/* Botões */}
-            <View style={styles.buttonContainer}>
+            <View style={[
+              styles.buttonContainer,
+              (isSmallScreen || !isTablet) && styles.buttonContainerMobile
+            ]}>
               <TouchableOpacity
                 onPress={handleClose}
-                style={[styles.button, styles.cancelButton]}
+                style={[
+                  styles.button,
+                  styles.cancelButton,
+                  (isSmallScreen || !isTablet) && styles.buttonMobile
+                ]}
                 disabled={loading}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={[
+                  styles.cancelButtonText,
+                  (isSmallScreen || !isTablet) && styles.buttonTextMobile
+                ]}>
+                  Cancelar
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -194,6 +269,7 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
                 style={[
                   styles.button,
                   styles.submitButton,
+                  (isSmallScreen || !isTablet) && styles.buttonMobile,
                   (nota === 0 || loading) && styles.submitButtonDisabled
                 ]}
                 disabled={nota === 0 || loading}
@@ -201,12 +277,18 @@ const ModalAvaliacaoRestaurante: React.FC<ModalAvaliacaoRestauranteProps> = ({
                 {loading ? (
                   <ActivityIndicator size="small" color={colors.branco} />
                 ) : (
-                  <Text style={styles.submitButtonText}>Enviar Avaliação</Text>
+                  <Text style={[
+                    styles.submitButtonText,
+                    (isSmallScreen || !isTablet) && styles.buttonTextMobile
+                  ]}>
+                    Enviar Avaliação
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -220,6 +302,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  keyboardAvoiding: {
+    width: '100%',
+    alignItems: 'center',
+  },
   modalContainer: {
     backgroundColor: colors.branco,
     borderRadius: 20,
@@ -231,8 +317,19 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 10,
   },
+  modalContainerMobile: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+  },
+  modalContainerShort: {
+    maxHeight: '85%',
+  },
   scrollContent: {
     padding: 24,
+  },
+  scrollContentMobile: {
+    padding: 20,
   },
   header: {
     flexDirection: 'row',
@@ -243,16 +340,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: colors.verdeFolha,
   },
+  headerMobile: {
+    marginBottom: 20,
+    paddingBottom: 12,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.verdeFolha,
     flex: 1,
   },
+  titleMobile: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
   closeButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: colors.cinzaMuitoClaro,
+  },
+  closeButtonMobile: {
+    padding: 6,
   },
   closeButtonText: {
     fontSize: 18,
@@ -267,9 +375,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.verdeFolha + '30',
   },
+  restauranteInfoMobile: {
+    padding: 14,
+    marginBottom: 20,
+  },
   restauranteHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  restauranteHeaderMobile: {
+    alignItems: 'flex-start',
+    gap: 12,
   },
   logo: {
     width: 60,
@@ -288,16 +404,27 @@ const styles = StyleSheet.create({
   restauranteDetails: {
     flex: 1,
   },
+  restauranteDetailsMobile: {
+    marginRight: 8,
+  },
   restauranteNome: {
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.verdeFolha,
     marginBottom: 4,
   },
+  restauranteNomeMobile: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
   restauranteDescricao: {
     fontSize: 14,
     color: colors.cinzaEscuro,
     lineHeight: 20,
+  },
+  restauranteDescricaoMobile: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   ratingSection: {
     marginBottom: 24,
@@ -309,6 +436,10 @@ const styles = StyleSheet.create({
     color: colors.verdeFolha,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  sectionTitleMobile: {
+    fontSize: 16,
+    marginBottom: 12,
   },
   starContainer: {
     marginBottom: 12,
@@ -333,6 +464,11 @@ const styles = StyleSheet.create({
     minHeight: 100,
     marginBottom: 8,
   },
+  commentInputMobile: {
+    padding: 14,
+    minHeight: 90,
+    fontSize: 15,
+  },
   characterCount: {
     fontSize: 12,
     color: colors.cinzaMedio,
@@ -341,6 +477,10 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
+  },
+  buttonContainerMobile: {
+    flexDirection: 'column',
+    gap: 10,
   },
   button: {
     flex: 1,
@@ -360,6 +500,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.cinzaEscuro,
   },
+  buttonMobile: {
+    width: '100%',
+    alignSelf: 'stretch',
+    paddingVertical: 14,
+  },
   submitButton: {
     backgroundColor: colors.verdeFolha,
     borderWidth: 2,
@@ -373,6 +518,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.branco,
+  },
+  buttonTextMobile: {
+    fontSize: 15,
   },
 });
 

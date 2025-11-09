@@ -622,6 +622,7 @@ const Index = () => {
               cards={filteredCards as any}
               onCardClick={handleCardClick}
                 title="Restaurantes encontrados"
+              cardVariant="compact"
             />
           ) : (
               <View style={indexStyles.emptyStateContainer}>
@@ -646,7 +647,7 @@ const Index = () => {
         {/* Todos os Restaurantes */}
         <View style={indexStyles.carouselSection}>
           <Text style={indexStyles.carouselTitle}>
-            {restaurantes.length > 0 ? 'Nossos Restaurantes' : 'Melhores Avaliados'}
+            {restaurantes.length > 0 ? 'Restaurantes' : 'Melhores Avaliados'}
           </Text>
           {loading ? (
             <View style={indexStyles.loadingContainer}>
@@ -663,6 +664,7 @@ const Index = () => {
                 cards={cardData as any}
                 onCardClick={handleCardClick}
                 title="Melhores Avaliados"
+                cardVariant="compact"
               />
               {/* Mostrar aviso discreto sobre o erro */}
               <View style={indexStyles.errorContainer}>
@@ -683,68 +685,14 @@ const Index = () => {
               cards={cardsParaExibir as any}
               onCardClick={handleCardClick}
               title="Todos os restaurantes"
+              cardVariant="compact"
             />
           )}
         </View>
-      
-        {/* Seção Institucional */}
-        <View style={indexStyles.aboutSection}>
-          <Text style={indexStyles.aboutTitle}>Sobre o Saborê</Text>
-          <Text style={indexStyles.aboutText}>
-            O Saborê nasceu para conectar apaixonados por sabor especial aos melhores restaurantes e experiências gastronômicas. Nossa missão é facilitar o acesso, promover a cultura e valorizar os estabelecimentos que fazem do Brasil um sabor inesquecível.
-          </Text>
-        </View>
-
-                {/* Footer */}
+    
+        {/* Footer */}
         <View style={indexStyles.footerContainer}>
-          <View style={indexStyles.footerContent}>
-            <View style={indexStyles.footerSection}>
-              <Text style={indexStyles.footerTitle}>Saborê</Text>
-              <Text style={indexStyles.footerDescription}>
-                Conectando você aos melhores sabores do Brasil. Descubra restaurantes incríveis e faça pedidos deliciosos.
-              </Text>
-            </View>
-
-            <View style={[indexStyles.footerSection, { marginTop: (isSmallScreen || isMediumScreen) ? 16 : 0 }]}>
-              <Text style={indexStyles.footerSubtitle}>Navegação</Text>
-              <View style={{ 
-                width: '100%', 
-                alignItems: isSmallScreen || isMediumScreen ? 'center' : 'flex-start',
-                gap: isSmallScreen || isMediumScreen ? 4 : 0,
-              }}>
-                <TouchableOpacity onPress={() => router.push('/')}>
-                  <Text style={indexStyles.footerLink}>• Página Inicial</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push('/login')}>
-                  <Text style={indexStyles.footerLink}>• Fazer Login</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push('/cadastro')}>
-                  <Text style={indexStyles.footerLink}>• Criar Conta</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push('/carrinho')}>
-                  <Text style={indexStyles.footerLink}>• Meu Carrinho</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <Text style={[indexStyles.footerSubtitle, { marginTop: (isSmallScreen || isMediumScreen) ? 16 : 20 }]}>Empresas</Text>
-              <View style={{ 
-                width: '100%', 
-                alignItems: isSmallScreen || isMediumScreen ? 'center' : 'flex-start',
-                gap: isSmallScreen || isMediumScreen ? 4 : 0,
-              }}>
-                <TouchableOpacity onPress={() => router.push('/indexEmpresas')}>
-                  <Text style={indexStyles.footerLink}>• Área Empresarial</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push('/loginEmpresas')}>
-                  <Text style={indexStyles.footerLink}>• Login Empresas</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push('/cadastrarEmpresa')}>
-                  <Text style={indexStyles.footerLink}>• Cadastrar Empresa</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-          
+                  
           <View style={indexStyles.footerBottom}>
             <Text style={indexStyles.footerCopyright}>
               © 2024 Saborê - Todos os direitos reservados | Desenvolvido com ❤️ no Brasil

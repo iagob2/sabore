@@ -9,18 +9,25 @@ export const cardStyles = StyleSheet.create({
   card: {
     position: 'relative',
     backgroundColor: colors.branco,
-    borderRadius: 24, // Cantos mais arredondados
+    borderRadius: 20, // Cantos arredondados
     overflow: 'hidden',
     shadowColor: colors.preto,
-    shadowOffset: { width: 0, height: 4 }, // Sombra mais pronunciada
-    shadowOpacity: 0.12,
-    shadowRadius: 12, // Sombra mais suave
-    elevation: 8, // Elevação aumentada para Android
-    width: 320,
-    marginVertical: isSmallScreen ? 12 : 16, // Mais espaçamento
-    marginHorizontal: 'auto',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 6,
+    width: '100%',
+    maxWidth: 220,
+    minWidth: 180,
+    marginVertical: isSmallScreen ? 8 : 12,
     borderWidth: 1,
     borderColor: colors.cinzaMuitoClaro, // Borda sutil
+  },
+  cardCompact: {
+    borderRadius: 18,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardTransparent: {
     backgroundColor: 'transparent',
@@ -32,12 +39,17 @@ export const cardStyles = StyleSheet.create({
     // cursor: pointer (não existe no RN, mas pode ser usado no web)
   },
   cardHovered: {
-    transform: [{ scale: 1.02 }], // Escala mais sutil
+    transform: [{ scale: 1.015 }], // Escala mais sutil
     shadowColor: colors.verdeFolha,
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 12,
     borderColor: colors.verdeFolha,
+  },
+  cardHoveredCompact: {
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 8,
   },
   imageContainer: {
     position: 'relative',
@@ -46,6 +58,9 @@ export const cardStyles = StyleSheet.create({
     overflow: 'hidden',
     width: '100%',
     marginBottom: 0,
+  },
+  imageContainerCompact: {
+    aspectRatio: 4 / 3,
   },
   image: {
     width: '100%',
@@ -71,45 +86,68 @@ export const cardStyles = StyleSheet.create({
     zIndex: 2,
   },
   content: {
-    paddingTop: 16, // Mais espaçamento no topo
-    paddingRight: isSmallScreen ? 16 : isLargeScreen ? 24 : 20,
-    paddingBottom: isSmallScreen ? 16 : isLargeScreen ? 24 : 20,
-    paddingLeft: isSmallScreen ? 16 : isLargeScreen ? 24 : 20,
-    minHeight: 120, // Altura reduzida para melhor proporção
-    maxHeight: 140,
+    paddingTop: 12,
+    paddingRight: isSmallScreen ? 12 : isLargeScreen ? 18 : 16,
+    paddingBottom: isSmallScreen ? 12 : isLargeScreen ? 20 : 16,
+    paddingLeft: isSmallScreen ? 12 : isLargeScreen ? 18 : 16,
+    minHeight: 110,
+    maxHeight: 130,
     overflow: 'hidden',
     justifyContent: 'space-between',
   },
+  contentCompact: {
+    paddingTop: 10,
+    paddingBottom: 12,
+    paddingLeft: 12,
+    paddingRight: 12,
+    minHeight: 100,
+    maxHeight: 120,
+  },
   title: {
     color: colors.verdeFolha,
-    fontSize: isSmallScreen ? 18 : isLargeScreen ? 22 : 20,
-    fontWeight: '700', // Peso mais forte
-    marginBottom: 6, // Mais espaçamento
+    fontSize: isSmallScreen ? 16 : isLargeScreen ? 20 : 18,
+    fontWeight: '700',
+    marginBottom: 4,
     marginTop: 0,
-    lineHeight: isSmallScreen ? 22 : isLargeScreen ? 26 : 24,
+    lineHeight: isSmallScreen ? 20 : isLargeScreen ? 24 : 22,
     letterSpacing: 0.2, // Espaçamento entre letras
+  },
+  titleCompact: {
+    fontSize: isSmallScreen ? 15 : isLargeScreen ? 18 : 16,
+    marginBottom: 2,
   },
   subtitle: {
     color: colors.cinzaEscuro, // Cor mais suave
-    fontSize: isSmallScreen ? 13 : isLargeScreen ? 16 : 14,
-    marginBottom: 12,
-    lineHeight: isSmallScreen ? 18 : isLargeScreen ? 20 : 18,
+    fontSize: isSmallScreen ? 12 : isLargeScreen ? 15 : 13,
+    marginBottom: 10,
+    lineHeight: isSmallScreen ? 16 : isLargeScreen ? 20 : 18,
     fontWeight: '400',
+  },
+  subtitleCompact: {
+    fontSize: isSmallScreen ? 11.5 : isLargeScreen ? 14 : 12,
+    marginBottom: 8,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12, // Mais espaçamento
-    paddingTop: 12,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: colors.cinzaMuitoClaro, // Divisor sutil
+  },
+  ratingRowCompact: {
+    marginTop: 8,
+    paddingTop: 8,
   },
   ratingValue: {
     color: colors.amareloOuro,
     fontSize: isSmallScreen ? 14 : isLargeScreen ? 16 : 15,
     marginLeft: 8,
     fontWeight: '600',
+  },
+  ratingValueCompact: {
+    fontSize: isSmallScreen ? 13 : isLargeScreen ? 15 : 14,
   },
   indicator: {
     marginRight: 10,
@@ -130,18 +168,30 @@ export const cardStyles = StyleSheet.create({
     borderColor: colors.verdeFolha + '20',
     zIndex: 4,
   },
+  borderGlowCompact: {
+    borderRadius: 18,
+  },
   borderGlowHovered: {
     borderColor: colors.verdeFolha,
     borderWidth: 2,
   },
   titleContainer: {
-    height: 28, // Altura ajustada
+    height: 24, // Altura ajustada
     justifyContent: 'center',
-    marginBottom: 8, // Menos espaçamento
+    marginBottom: 6, // Menos espaçamento
+  },
+  titleContainerCompact: {
+    height: 22,
+    marginBottom: 4,
   },
   descriptionContainer: {
-    height: 36, // Altura ajustada
+    minHeight: 32,
+    maxHeight: 36,
     justifyContent: 'center',
+  },
+  descriptionContainerCompact: {
+    minHeight: 28,
+    maxHeight: 32,
   },
   // Novos estilos para badges e tags
   badgeContainer: {
@@ -149,6 +199,10 @@ export const cardStyles = StyleSheet.create({
     top: 12,
     right: 12,
     zIndex: 5,
+  },
+  badgeContainerCompact: {
+    top: 10,
+    right: 10,
   },
   badge: {
     backgroundColor: colors.rosaPromocao,
@@ -161,11 +215,19 @@ export const cardStyles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  badgeCompact: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
   badgeText: {
     color: colors.branco,
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+  badgeTextCompact: {
+    fontSize: 9,
   },
   // Estilos para informações adicionais
   infoRow: {
@@ -173,6 +235,11 @@ export const cardStyles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     gap: 12,
+    flexWrap: 'wrap',
+  },
+  infoRowCompact: {
+    marginTop: 6,
+    gap: 8,
   },
   infoItem: {
     flexDirection: 'row',
@@ -183,5 +250,8 @@ export const cardStyles = StyleSheet.create({
     color: colors.cinzaMedio,
     fontSize: 12,
     fontWeight: '500',
+  },
+  infoTextCompact: {
+    fontSize: 11,
   },
 }); 

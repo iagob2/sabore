@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, ImageBackground, Switch, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, ImageBackground, Switch, ActivityIndicator, Keyboard } from 'react-native';
 import Input from '../components/Input';
 import { indexStyles } from '../style/indexStyles';
 import Header from '../components/Header';
@@ -498,7 +498,10 @@ const Cadastro = () => {
                       Li e aceito a política de proteção de dados *
                     </Text>
                     <TouchableOpacity 
-                      onPress={() => setPoliticaVisible(true)}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setPoliticaVisible(true);
+                      }}
                       style={{ 
                         backgroundColor: colors.verdeFolha, 
                         width: 20, 

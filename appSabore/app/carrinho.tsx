@@ -347,9 +347,12 @@ const Carrinho = () => {
         onCartPress={() => router.push('/carrinho')}
       />
       
-      <ScrollView style={[styles.container, { backgroundColor: colors.branco }]}> 
+      <ScrollView 
+        style={[styles.container, { backgroundColor: colors.branco }]}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      > 
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.verdeFolha }]}>🛒 Meu Carrinho</Text>
+          <Text style={[styles.title, { color: colors.verdeFolha }]}>Meu Carrinho</Text>
           {carrinho.length > 0 && (
             <TouchableOpacity 
               onPress={() => {
@@ -378,7 +381,7 @@ const Carrinho = () => {
             <Text style={[styles.emptyCartTitle, { color: colors.amareloOuro }]}>Carrinho Vazio</Text>
             <Text style={[styles.emptyCartText, { color: colors.preto + '99' }]}>Adicione alguns pratos deliciosos ao seu carrinho!</Text>
             <TouchableOpacity 
-              onPress={() => router.push('/indexEmpresas')}
+              onPress={() => router.replace('/')}
               style={[styles.explorarButton, { backgroundColor: colors.verdeFolha }]}
             >
               <Text style={[styles.explorarButtonText, { color: colors.branco }]}>Explorar Restaurantes</Text>

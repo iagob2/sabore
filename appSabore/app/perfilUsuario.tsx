@@ -487,6 +487,10 @@ const perfilUsuarioStyles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
+  editProfileText: {
+    color: colors.verdeFolha,
+    fontWeight: '600',
+  },
   logoutText: {
     color: colors.vermelhoErro,
   },
@@ -1068,9 +1072,7 @@ const PerfilUsuario = () => {
             </View>
           </View>
           
-          <TouchableOpacity onPress={handleEditProfile} style={perfilUsuarioStyles.editButton}>
-            <Text style={perfilUsuarioStyles.editButtonText}>Editar Perfil</Text>
-          </TouchableOpacity>
+          
         </View>
 
         {/* Seção Refazer Último Pedido */}
@@ -1312,7 +1314,7 @@ const PerfilUsuario = () => {
             Configurações
           </Text>
           
-          <TouchableOpacity style={perfilUsuarioStyles.configItem}>
+          {/* <TouchableOpacity style={perfilUsuarioStyles.configItem}>
             <Text style={perfilUsuarioStyles.sectionIcon}>🔔</Text>
             <Text style={[perfilUsuarioStyles.configText, { color: colors.verdeFolha }]}>
               Notificações
@@ -1350,6 +1352,14 @@ const PerfilUsuario = () => {
               Ajuda e Suporte
             </Text>
             <Icon name="chevron-right" size={16} color={colors.cinzaMedio} />
+          </TouchableOpacity> */}
+
+          <TouchableOpacity style={perfilUsuarioStyles.configItem} onPress={handleEditProfile}>
+            <Text style={perfilUsuarioStyles.sectionIcon}>👤</Text>
+            <Text style={[perfilUsuarioStyles.configText, perfilUsuarioStyles.editProfileText]}>
+              Editar Perfil
+            </Text>
+            <Icon name="chevron-right" size={16} color={colors.verdeFolha} />
           </TouchableOpacity>
           
           <TouchableOpacity style={perfilUsuarioStyles.configItem} onPress={handleLogout}>
@@ -1926,7 +1936,7 @@ const PerfilUsuario = () => {
                             fontSize: 18,
                             fontWeight: 'bold',
                           }}>
-                            💰 Total do Pedido:
+                            Total do Pedido:
                           </Text>
                           <Text style={{
                             color: colors.branco,
@@ -1962,7 +1972,7 @@ const PerfilUsuario = () => {
                   </View>
                 ) : (
                   // Modo refazer pedido - botões Fechar e Adicionar ao Carrinho
-                  <View style={{ flexDirection: 'row', gap: 16, width: '100%' }}>
+                  <View style={{ width: '100%' }}>
                     <TouchableOpacity 
                       onPress={fecharModalPedido}
                       style={{ 
@@ -1970,10 +1980,11 @@ const PerfilUsuario = () => {
                         paddingVertical: 16,
                         paddingHorizontal: 32,
                         borderRadius: 12,
-                        flex: 1,
+                        width: '100%',
                         alignItems: 'center',
                         borderWidth: 1.5,
-                        borderColor: colors.marromFeijao
+                        borderColor: colors.marromFeijao,
+                        marginBottom: 12,
                       }}
                     >
                       <Text style={{ color: colors.marromFeijao, fontWeight: 'bold', fontSize: 16 }}>Fechar</Text>
@@ -1986,13 +1997,13 @@ const PerfilUsuario = () => {
                         paddingVertical: 16, 
                         paddingHorizontal: 32, 
                         borderRadius: 12, 
-                        flex: 1,
+                        width: '100%',
                         alignItems: 'center',
                         borderWidth: 1.5,
                         borderColor: colors.verdeFolha
                       }}
                     >
-                      <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>🛒 Adicionar ao Carrinho</Text>
+                      <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>Adicionar ao Carrinho</Text>
                     </TouchableOpacity>
                   </View>
                 )}

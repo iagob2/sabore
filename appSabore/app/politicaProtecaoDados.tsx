@@ -1,14 +1,17 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Dimensions, useWindowDimensions, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Dimensions, useWindowDimensions, SafeAreaView, Platform, StatusBar } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { colors } from '../style/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isLargeScreen = SCREEN_WIDTH > 900;
 
+const ANDROID_STATUSBAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 0;
+
 const politicaStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    paddingTop: ANDROID_STATUSBAR_HEIGHT,
   },
   modalContainer: {
     flex: 1,
@@ -16,6 +19,12 @@ const politicaStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  modalContainerMobile: {
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   modalContent: {
     backgroundColor: colors.branco,
@@ -32,9 +41,11 @@ const politicaStyles = StyleSheet.create({
     elevation: 10,
   },
   modalContentMobile: {
-    maxWidth: 420,
+    maxWidth: '100%',
+    maxHeight: '100%',
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 0,
+    flex: 1,
   },
   modalContentShort: {
     maxHeight: '85%',
@@ -167,7 +178,12 @@ const PoliticaProtecaoDados = ({ visible, onClose, tipo }: PoliticaProtecaoDados
       statusBarTranslucent
     >
       <SafeAreaView style={politicaStyles.safeArea}>
-        <View style={politicaStyles.modalContainer}>
+        <View
+          style={[
+            politicaStyles.modalContainer,
+            (isSmallScreen || !isTablet) && politicaStyles.modalContainerMobile,
+          ]}
+        >
         <View
           style={[
             politicaStyles.modalContent,

@@ -12,9 +12,10 @@ interface CardPratoProps {
   onPress?: () => void;
   onPressAvaliacoes?: () => void;
   itemId?: number;
+  style?: object;
 }
 
-const CardPrato: React.FC<CardPratoProps> = ({ imagem, nome, ingredientes, valor, avaliacao, onPress, onPressAvaliacoes }) => {
+const CardPrato: React.FC<CardPratoProps> = ({ imagem, nome, ingredientes, valor, avaliacao, onPress, onPressAvaliacoes, style }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   // Props para hover apenas no web
@@ -27,7 +28,8 @@ const CardPrato: React.FC<CardPratoProps> = ({ imagem, nome, ingredientes, valor
     <TouchableOpacity 
       style={[
         styles.card,
-        isHovered && styles.cardHovered
+        isHovered && styles.cardHovered,
+        style
       ]} 
       onPress={onPress} 
       activeOpacity={0.85}

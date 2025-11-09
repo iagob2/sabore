@@ -326,34 +326,6 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 					</View>
 				)}
             {/* Menu suspenso Empresas (apenas em telas maiores) */}
-            <View style={{ position: 'relative' }}>
-              <TouchableOpacity
-                onPress={() => setShowEmpresasMenu((v) => !v)}
-                style={headerStyles.btn}
-                {...(Platform.OS === 'web' ? {
-                  onMouseEnter: () => setHovered('empresas'),
-                  onMouseLeave: () => setHovered(null),
-                } : {})}
-              >
-                <Text style={{ color: colors.verdeFolha }}>Empresas ▼</Text>
-              </TouchableOpacity>
-              {showEmpresasMenu && (
-                <View style={[headerStyles.dropdownMenu, { position: 'absolute', top: 40, right: 0, minWidth: 180, paddingVertical: 4, paddingHorizontal: 0, alignItems: 'stretch' }]}>
-                  <TouchableOpacity
-                    onPress={() => { setShowEmpresasMenu(false); router.push('/loginEmpresas'); }}
-                    {...getBtnProps('/loginEmpresas', true)}
-                  >
-                    <Text style={[getBtnProps('/loginEmpresas', true).textStyle]}>Login Empresas</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => { setShowEmpresasMenu(false); router.push('/cadastrarEmpresa'); }}
-                    {...getBtnProps('/cadastrarEmpresa', true)}
-                  >
-                    <Text style={[getBtnProps('/cadastrarEmpresa', true).textStyle]}>Cadastrar Empresa</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
             {/* Carrinho */}
             <TouchableOpacity 
               onPress={onCartPress} 
@@ -431,12 +403,6 @@ const Header: React.FC<HeaderProps> = ({ logo, onLogin, onRegister, cartItemCoun
 						</TouchableOpacity>
 					</>
 				)}
-          <TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/loginEmpresas'); }} style={mobileStyles.mobileMenuItem}>
-            <Text style={mobileStyles.mobileMenuText}>Login Empresas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setMenuOpen(false); router.push('/cadastrarEmpresa'); }} style={mobileStyles.mobileMenuItem}>
-            <Text style={mobileStyles.mobileMenuText}>Cadastrar Empresa</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => { setMenuOpen(false); onCartPress && onCartPress(); }} style={[mobileStyles.mobileMenuItem, { borderBottomWidth: 0 }]}>
             <Text style={mobileStyles.mobileMenuText}>Carrinho {cartItemCount ? `(${cartItemCount})` : ''}</Text>
           </TouchableOpacity>

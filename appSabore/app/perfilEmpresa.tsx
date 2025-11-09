@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { indexStyles } from '../style/indexStyles';
 import Header from '../components/Header';
 import CardPrato from '../components/CardPrato';
@@ -91,6 +91,15 @@ const perfilEmpresaStyles = StyleSheet.create({
     right: 40,
     zIndex: 3,
   },
+  infoRapidaContainerMobile: {
+    position: 'relative',
+    top: 0,
+    right: 0,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+    width: '100%',
+  },
   nome: {
     color: colors.verdeFolha,
     fontSize: 30,
@@ -115,6 +124,11 @@ const perfilEmpresaStyles = StyleSheet.create({
     flexWrap: 'nowrap',
     justifyContent: 'flex-end',
   },
+  infoRapidaMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 10,
+  },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -122,16 +136,33 @@ const perfilEmpresaStyles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
+  infoItemMobile: {
+    backgroundColor: colors.cinzaMuitoClaro,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
   infoIcon: {
     fontSize: 18,
     marginRight: 6,
     color: colors.verdeFolha,
+  },
+  infoIconMobile: {
+    fontSize: 18,
+    marginRight: 8,
   },
   infoText: {
     color: colors.preto,
     fontSize: 13,
     marginRight: 4,
     maxWidth: 120,
+    flexShrink: 1,
+  },
+  infoTextMobile: {
+    fontSize: 14,
+    maxWidth: '100%',
   },
   copyBtn: {
     marginLeft: 4,
@@ -147,6 +178,19 @@ const perfilEmpresaStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-start',
     gap: 18,
+  },
+  socialRowContainerMobile: {
+    position: 'relative',
+    top: 0,
+    left: 0,
+    marginTop: 8,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  socialRowMobile: {
+    justifyContent: 'center',
+    gap: 28,
+    paddingVertical: 8,
   },
   socialIcon: {
     padding: 10,
@@ -336,7 +380,84 @@ const PerfilEmpresa = () => {
   const isSmallScreen = screenWidth < 380;
   const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
   const isLargeScreenRuntime = screenWidth > 900;
+  const isMobileRuntime = !isLargeScreenRuntime;
   const socialIconSize = isSmallScreen ? 22 : isMediumScreen ? 24 : 28;
+  const cardapioScrollRef = useRef<ScrollView>(null);
+  const [cardapioScrollX, setCardapioScrollX] = useState(0);
+  const [cardapioContentWidth, setCardapioContentWidth] = useState(0);
+  const [cardapioViewportWidth, setCardapioViewportWidth] = useState(screenWidth);
+  const [maxCardapioScroll, setMaxCardapioScroll] = useState(0);
+  const cardapioCardWidth = isSmallScreen ? 220 : isMediumScreen ? 240 : 260;
+  const cardapioScrollStep = cardapioCardWidth + 16;
+  const canScrollCardapioLeft = cardapioScrollX > 12;
+  const canScrollCardapioRight = cardapioScrollX < maxCardapioScroll - 12;
+  const atualizarMaxCardapioScroll = (contentWidth: number, viewportWidth: number) => {
+    const maxScrollValue = Math.max(0, contentWidth - viewportWidth);
+    setMaxCardapioScroll(maxScrollValue);
+
+    if (cardapioScrollX > maxScrollValue) {
+      const clamped = Math.max(0, maxScrollValue);
+      setCardapioScrollX(clamped);
+      requestAnimationFrame(() => {
+        cardapioScrollRef.current?.scrollTo({ x: clamped, animated: false });
+      });
+    }
+  };
+
+  const scrollCardapio = (direction: 'left' | 'right') => {
+    if (!cardapioScrollRef.current) return;
+    const target =
+      direction === 'left'
+        ? Math.max(0, cardapioScrollX - cardapioScrollStep)
+        : Math.min(maxCardapioScroll, cardapioScrollX + cardapioScrollStep);
+
+    cardapioScrollRef.current.scrollTo({ x: target, animated: true });
+    setCardapioScrollX(target);
+  };
+
+  const handleCardapioScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = event.nativeEvent?.contentOffset?.x || 0;
+    setCardapioScrollX(x);
+  };
+  
+  const normalizarUrl = (url?: string | null) => {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (!/^https?:\/\//i.test(trimmed)) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  };
+
+  const abrirLinkExterno = async (url?: string | null, descricao?: string) => {
+    const urlNormalizada = normalizarUrl(url);
+    if (!urlNormalizada) {
+      toast({
+        title: 'Link indisponível',
+        description: descricao ? `Não encontramos o link de ${descricao}.` : 'Não encontramos o link informado.',
+      });
+      return;
+    }
+
+    try {
+      const podeAbrir = await Linking.canOpenURL(urlNormalizada);
+      if (!podeAbrir) {
+        toast({
+          title: 'Não foi possível abrir o link',
+          description: 'Verifique se você possui um aplicativo compatível instalado.',
+        });
+        return;
+      }
+      await Linking.openURL(urlNormalizada);
+    } catch (error) {
+      console.error('Erro ao abrir link externo:', error);
+      toast({
+        title: 'Erro ao abrir link',
+        description: 'Tente novamente mais tarde.',
+      });
+    }
+  };
   
   // Estados para dados reais da API
   const [empresa, setEmpresa] = useState<RestauranteResponse | null>(null);
@@ -916,10 +1037,6 @@ const PerfilEmpresa = () => {
     );
   }
 
-  if (!empresa) {
-    return null;
-  }
-
   // Processar pratos do banco de dados
   console.log('🔄 === PROCESSANDO PRATOS PARA EXIBIÇÃO ===');
   console.log('📦 Itens do restaurante disponíveis:', itensRestaurante.length);
@@ -936,46 +1053,10 @@ const PerfilEmpresa = () => {
   });
   
   console.log('📋 Total de pratos adaptados:', pratosAdaptados.length);
-  
-  // Verificar se há pratos cadastrados
-  const temPratos = pratosAdaptados.length > 0;
-  
-  // Se há pratos, distribuir entre categorias
-  let pratosQuentesExibir = [];
-  let pratosFriosExibir = [];
-  let pratosFavoritosExibir = [];
-  
-  if (temPratos) {
-    console.log('📊 Distribuindo pratos reais entre categorias...');
-    
-    // Dividir os pratos em 3 grupos para as 3 seções
-    const totalPratos = pratosAdaptados.length;
-    pratosQuentesExibir = pratosAdaptados.slice(0, Math.ceil(totalPratos / 3)); // Primeiro terço
-    pratosFriosExibir = pratosAdaptados.slice(Math.ceil(totalPratos / 3), Math.ceil((totalPratos * 2) / 3)); // Segundo terço
-    pratosFavoritosExibir = pratosAdaptados.slice(Math.ceil((totalPratos * 2) / 3)); // Último terço
-    
-    // Se alguma categoria ficou vazia, redistribuir
-    if (pratosFriosExibir.length === 0 && totalPratos > 1) {
-      pratosFriosExibir = pratosAdaptados.slice(1, 2);
-    }
-    if (pratosFavoritosExibir.length === 0 && totalPratos > 2) {
-      pratosFavoritosExibir = pratosAdaptados.slice(2, 3);
-    }
-    
-    console.log('📊 Distribuição por categoria:');
-    console.log('🔥 Quentes:', pratosQuentesExibir.length);
-    console.log('🧊 Frios:', pratosFriosExibir.length);
-    console.log('⭐ Favoritos:', pratosFavoritosExibir.length);
-  } else {
-    console.log('⚠️ Nenhum prato encontrado no banco de dados');
+
+  if (!empresa) {
+    return null;
   }
-  
-  console.log('🎯 Estado final para exibição:');
-  console.log('📊 Tem pratos:', temPratos);
-  console.log('🔥 Quentes a exibir:', pratosQuentesExibir.length);
-  console.log('🧊 Frios a exibir:', pratosFriosExibir.length);
-  console.log('⭐ Favoritos a exibir:', pratosFavoritosExibir.length);
-  console.log('⚡ loadingItens:', loadingItens);
 
   // Função para construir URL completa da imagem
   const construirUrlImagem = (url: string | null | undefined): string | null => {
@@ -1174,35 +1255,104 @@ const PerfilEmpresa = () => {
           <View
             style={[
               perfilEmpresaStyles.infoRapidaContainer,
-              isLargeScreenRuntime
-                ? null
-                : { position: 'relative', top: 0, right: 0, alignSelf: 'center', marginTop: 8 },
+              isMobileRuntime && perfilEmpresaStyles.infoRapidaContainerMobile,
             ]}
           >
             <View
               style={[
                 perfilEmpresaStyles.infoRapida,
-                (isSmallScreen || isMediumScreen)
-                  ? { flexWrap: 'wrap', justifyContent: 'center' }
-                  : { flexWrap: 'nowrap', justifyContent: 'flex-end' },
+                isMobileRuntime && perfilEmpresaStyles.infoRapidaMobile,
               ]}
             >
-              <View style={perfilEmpresaStyles.infoItem}>
-                <Text style={perfilEmpresaStyles.infoIcon}>{empresaCompleta.aberto ? '🟢' : '🔴'}</Text>
-                <Text style={perfilEmpresaStyles.infoText}>{empresaCompleta.aberto ? 'Aberto' : 'Fechado'}</Text>
+              <View
+                style={[
+                  perfilEmpresaStyles.infoItem,
+                  isMobileRuntime && perfilEmpresaStyles.infoItemMobile,
+                ]}
+              >
+                <Text
+                  style={[
+                    perfilEmpresaStyles.infoText,
+                    isMobileRuntime && perfilEmpresaStyles.infoTextMobile,
+                  ]}
+                >
+                  {empresaCompleta.aberto ? 'Aberto' : 'Fechado'}
+                </Text>
+                <Text
+                  style={[
+                    perfilEmpresaStyles.infoIcon,
+                    isMobileRuntime && perfilEmpresaStyles.infoIconMobile,
+                  ]}
+                >
+                  {empresaCompleta.aberto ? '🟢' : '🔴'}
+                </Text>
               </View>
-              <View style={perfilEmpresaStyles.infoItem}>
-                <FontAwesome name="phone" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
-                <Text style={perfilEmpresaStyles.infoText}>{empresaCompleta.telefone || 'Não informado'}</Text>
-                <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresaCompleta.telefone || '', 'telefone')} accessibilityLabel="Copiar telefone">
-                  <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>{copied === 'telefone' ? '✔️' : '📋'}</Text>
+              <View
+                style={[
+                  perfilEmpresaStyles.infoItem,
+                  isMobileRuntime && perfilEmpresaStyles.infoItemMobile,
+                ]}
+              >
+                <FontAwesome
+                  name="phone"
+                  size={isLargeScreenRuntime ? 13 : 16}
+                  color={colors.verdeFolha}
+                  style={{ marginRight: 6 }}
+                />
+                <View style={{ flex: 1, marginRight: isLargeScreenRuntime ? 6 : 12 }}>
+                  <Text
+                    style={[
+                      perfilEmpresaStyles.infoText,
+                      isMobileRuntime && perfilEmpresaStyles.infoTextMobile,
+                    ]}
+                    numberOfLines={isLargeScreenRuntime ? 1 : 2}
+                    ellipsizeMode="tail"
+                  >
+                    {empresaCompleta.telefone || 'Não informado'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={perfilEmpresaStyles.copyBtn}
+                  onPress={() => handleCopy(empresaCompleta.telefone || '', 'telefone')}
+                  accessibilityLabel="Copiar telefone"
+                >
+                  <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>
+                    {copied === 'telefone' ? '✔️' : '📋'}
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <View style={perfilEmpresaStyles.infoItem}>
-                <FontAwesome name="map-marker" size={14} color={colors.verdeFolha} style={{ marginRight: 4 }} />
-                <Text style={perfilEmpresaStyles.infoText}>{empresaCompleta.endereco}</Text>
-                <TouchableOpacity style={perfilEmpresaStyles.copyBtn} onPress={() => handleCopy(empresaCompleta.endereco, 'endereco')} accessibilityLabel="Copiar endereço">
-                  <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>{copied === 'endereco' ? '✔️' : '📋'}</Text>
+              <View
+                style={[
+                  perfilEmpresaStyles.infoItem,
+                  isMobileRuntime && perfilEmpresaStyles.infoItemMobile,
+                ]}
+              >
+                <FontAwesome
+                  name="map-marker"
+                  size={isLargeScreenRuntime ? 13 : 16}
+                  color={colors.verdeFolha}
+                  style={{ marginRight: 6 }}
+                />
+                <View style={{ flex: 1, marginRight: isLargeScreenRuntime ? 6 : 12 }}>
+                  <Text
+                    style={[
+                      perfilEmpresaStyles.infoText,
+                      isMobileRuntime && perfilEmpresaStyles.infoTextMobile,
+                    ]}
+                    numberOfLines={isLargeScreenRuntime ? 1 : 3}
+                    ellipsizeMode="tail"
+                  >
+                    {empresaCompleta.endereco}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={perfilEmpresaStyles.copyBtn}
+                  onPress={() => handleCopy(empresaCompleta.endereco, 'endereco')}
+                  accessibilityLabel="Copiar endereço"
+                >
+                  <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>
+                    {copied === 'endereco' ? '✔️' : '📋'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1212,34 +1362,47 @@ const PerfilEmpresa = () => {
           <View
             style={[
               perfilEmpresaStyles.socialRowContainer,
-              isLargeScreenRuntime
-                ? null
-                : { position: 'relative', top: 0, left: 0, marginTop: 8, alignSelf: 'center' },
+              isMobileRuntime && perfilEmpresaStyles.socialRowContainerMobile,
             ]}
           >
             <View
               style={[
                 perfilEmpresaStyles.socialRow,
-                { justifyContent: isLargeScreenRuntime ? 'flex-start' : 'center', flexWrap: isLargeScreenRuntime ? 'nowrap' : 'wrap' },
+                isMobileRuntime && perfilEmpresaStyles.socialRowMobile,
               ]}
             >
-              <TouchableOpacity accessibilityLabel="Site" onPress={() => Linking.openURL(empresaCompleta.links.site)}>
-                <FontAwesome name="globe" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+              <TouchableOpacity
+                accessibilityLabel="Facebook"
+                onPress={() => abrirLinkExterno(empresaCompleta.links.facebook, 'Facebook')}
+              >
+                <FontAwesome
+                  name="facebook"
+                  size={socialIconSize}
+                  color={colors.verdeFolha}
+                  style={perfilEmpresaStyles.socialIcon}
+                />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Facebook" onPress={() => Linking.openURL(empresaCompleta.links.facebook)}>
-                <FontAwesome name="facebook" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+              <TouchableOpacity
+                accessibilityLabel="Instagram"
+                onPress={() => abrirLinkExterno(empresaCompleta.links.instagram, 'Instagram')}
+              >
+                <FontAwesome
+                  name="instagram"
+                  size={socialIconSize}
+                  color={colors.verdeFolha}
+                  style={perfilEmpresaStyles.socialIcon}
+                />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Instagram" onPress={() => Linking.openURL(empresaCompleta.links.instagram)}>
-                <FontAwesome name="instagram" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
-              </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="WhatsApp" onPress={() => Linking.openURL(empresaCompleta.links.whatsapp)}>
-                <FontAwesome name="whatsapp" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
-              </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Maps" onPress={() => Linking.openURL(empresaCompleta.links.maps)}>
-                <FontAwesome name="map-marker" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
-              </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="E-mail" onPress={() => Linking.openURL(empresaCompleta.links.email)}>
-                <FontAwesome name="envelope" size={socialIconSize} color={colors.verdeFolha} style={perfilEmpresaStyles.socialIcon} />
+              <TouchableOpacity
+                accessibilityLabel="WhatsApp"
+                onPress={() => abrirLinkExterno(empresaCompleta.links.whatsapp, 'WhatsApp')}
+              >
+                <FontAwesome
+                  name="whatsapp"
+                  size={socialIconSize}
+                  color={colors.verdeFolha}
+                  style={perfilEmpresaStyles.socialIcon}
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -1306,7 +1469,7 @@ const PerfilEmpresa = () => {
                       {loadingItens ? 'Carregando pratos do restaurante...' : 'Carregando avaliações dos pratos...'}
                     </Text>
                   </View>
-                ) : !temPratos ? (
+                ) : pratosAdaptados.length === 0 ? (
                   // Estado vazio - sem pratos cadastrados
                   <View style={{
                     width: '100%',
@@ -1361,95 +1524,150 @@ const PerfilEmpresa = () => {
                     </View>
                   </View>
                 ) : (
-                  // Estado com pratos - exibir as categorias
-                  <>
-                    {/* Categoria Quentes */}
-                    {pratosQuentesExibir.length > 0 && (
-                      <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
-                        <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Quentes</Text>
-                        <ScrollView 
-                          horizontal 
-                          showsHorizontalScrollIndicator={false} 
-                          contentContainerStyle={{ 
-                            paddingHorizontal: 20,
+                  // Estado com pratos - exibir carrossel horizontal
+                  <View style={{ width: '100%', alignItems: 'center', marginBottom: 24, position: 'relative' }}>
+                    <Text
+                      style={{
+                        color: colors.verdeFolha,
+                        fontWeight: 'bold',
+                        fontSize: isSmallScreen ? 20 : 24,
+                        marginBottom: 12,
+                        textAlign: 'center',
+                      }}
+                    >
+                      Cardápio
+                    </Text>
+
+                    <View
+                      style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
+                      onLayout={(event) => {
+                        const width = event.nativeEvent.layout.width;
+                        setCardapioViewportWidth(width);
+                        atualizarMaxCardapioScroll(cardapioContentWidth, width);
+                      }}
+                    >
+                      <ScrollView
+                        ref={cardapioScrollRef}
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        onScroll={handleCardapioScroll}
+                        scrollEventThrottle={16}
+                        onContentSizeChange={(contentWidth) => {
+                          setCardapioContentWidth(contentWidth);
+                          atualizarMaxCardapioScroll(contentWidth, cardapioViewportWidth);
+                        }}
+                        decelerationRate="fast"
+                        snapToInterval={cardapioScrollStep}
+                        snapToAlignment="center"
+                        contentContainerStyle={{
+                          paddingHorizontal: isSmallScreen ? 12 : 24,
+                          alignItems: 'center',
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        {pratosAdaptados.map((prato, idx) => (
+                          <View
+                            key={`${prato.nome}-${idx}`}
+                            style={{
+                              width: cardapioCardWidth,
+                              marginRight: idx === pratosAdaptados.length - 1 ? 0 : 16,
+                            }}
+                          >
+                            <CardPrato
+                              {...prato}
+                              onPress={() => abrirModal(prato)}
+                              onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                            />
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </View>
+
+                    {pratosAdaptados.length > 1 && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 48,
+                          bottom: 8,
+                          left: 0,
+                          right: 0,
+                          justifyContent: 'center',
+                          pointerEvents: 'box-none',
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => scrollCardapio('left')}
+                          disabled={!canScrollCardapioLeft}
+                          activeOpacity={0.75}
+                          style={{
+                            position: 'absolute',
+                            left: isSmallScreen ? 8 : 16,
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            backgroundColor: colors.overlayEscuro,
                             alignItems: 'center',
-                            justifyContent: 'center'
-                          }} 
-                          style={{ marginBottom: 18, width: '100%' }}
+                            justifyContent: 'center',
+                            opacity: canScrollCardapioLeft ? 1 : 0.3,
+                            shadowColor: colors.preto,
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 4,
+                            pointerEvents: canScrollCardapioLeft ? 'auto' : 'none',
+                          }}
                         >
-                          {pratosQuentesExibir.map((prato, idx) => {
-                            console.log(`🔥 Renderizando prato quente ${idx + 1}:`, prato.nome, 'Avaliação:', prato.avaliacao);
-                            return (
-                              <CardPrato 
-                                key={prato.nome + idx} 
-                                {...prato} 
-                                onPress={() => abrirModal(prato)}
-                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                              />
-                            );
-                          })}
-                        </ScrollView>
+                          <MaterialIcons name="chevron-left" size={20} color={colors.branco} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => scrollCardapio('right')}
+                          disabled={!canScrollCardapioRight}
+                          activeOpacity={0.75}
+                          style={{
+                            position: 'absolute',
+                            right: isSmallScreen ? 8 : 16,
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            backgroundColor: colors.overlayEscuro,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: canScrollCardapioRight ? 1 : 0.3,
+                            shadowColor: colors.preto,
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 4,
+                            pointerEvents: canScrollCardapioRight ? 'auto' : 'none',
+                          }}
+                        >
+                          <MaterialIcons name="chevron-right" size={20} color={colors.branco} />
+                        </TouchableOpacity>
                       </View>
                     )}
-                    
-                    {/* Categoria Frios */}
-                    {pratosFriosExibir.length > 0 && (
-                      <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
-                        <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Frios</Text>
-                        <ScrollView 
-                          horizontal 
-                          showsHorizontalScrollIndicator={false} 
-                          contentContainerStyle={{ 
-                            paddingHorizontal: 20,
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }} 
-                          style={{ marginBottom: 18, width: '100%' }}
-                        >
-                          {pratosFriosExibir.map((prato, idx) => {
-                            console.log(`🧊 Renderizando prato frio ${idx + 1}:`, prato.nome, 'Avaliação:', prato.avaliacao);
-                            return (
-                              <CardPrato 
-                                key={prato.nome + idx} 
-                                {...prato} 
-                                onPress={() => abrirModal(prato)}
-                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                              />
-                            );
-                          })}
-                        </ScrollView>
+
+                    {isMobileRuntime && pratosAdaptados.length > 1 && (
+                      <View
+                        style={{
+                          marginTop: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          backgroundColor: 'rgba(0,0,0,0.25)',
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 16,
+                        }}
+                      >
+                        <MaterialIcons name="touch-app" size={14} color={colors.branco} />
+                        <Text style={{ color: colors.branco, fontSize: 12, fontWeight: '600' }}>
+                          arraste para o lado
+                        </Text>
                       </View>
                     )}
-                    
-                    {/* Categoria Favoritos */}
-                    {pratosFavoritosExibir.length > 0 && (
-                      <View style={{ width: '100%', alignItems: isSmallScreen ? 'center' : 'flex-start', marginBottom: 8 }}>
-                        <Text style={{ color: colors.verdeFolha, fontWeight: 'bold', fontSize: isSmallScreen ? 18 : 20, marginBottom: 8, textAlign: isSmallScreen ? 'center' : 'left', marginLeft: isSmallScreen ? 0 : 40 }}>Favoritos</Text>
-                        <ScrollView 
-                          horizontal 
-                          showsHorizontalScrollIndicator={false} 
-                          contentContainerStyle={{ 
-                            paddingHorizontal: 20,
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }} 
-                          style={{ marginBottom: 18, width: '100%' }}
-                        >
-                          {pratosFavoritosExibir.map((prato, idx) => {
-                            console.log(`⭐ Renderizando prato favorito ${idx + 1}:`, prato.nome, 'Avaliação:', prato.avaliacao);
-                            return (
-                              <CardPrato 
-                                key={prato.nome + idx} 
-                                {...prato} 
-                                onPress={() => abrirModal(prato)}
-                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                              />
-                            );
-                          })}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </>
+                  </View>
                 )}
               </View>
             </View>
@@ -1623,36 +1841,36 @@ const PerfilEmpresa = () => {
                 </View>
 
                 {/* Botões */}
-                <View style={{ flexDirection: 'row', gap: 16, width: '100%' }}>
+                <View style={{ width: '100%', gap: 12 }}>
                   <Pressable 
                     onPress={fecharModal} 
                     style={{ 
                       backgroundColor: colors.branco,
-                      paddingVertical: 16,
-                      paddingHorizontal: 32,
+                      paddingVertical: 14,
+                      paddingHorizontal: 24,
                       borderRadius: 12,
-                      flex: 1,
                       alignItems: 'center',
                       borderWidth: 1.5,
-                      borderColor: colors.marromFeijao
+                      borderColor: colors.marromFeijao,
+                      width: '100%',
                     }}
                   >
-                    <Text style={{ color: colors.marromFeijao, fontWeight: 'bold', fontSize: 16 }}>Cancelar</Text>
+                    <Text style={{ color: colors.marromFeijao, fontWeight: 'bold', fontSize: 15 }}>Cancelar</Text>
               </Pressable>
                   <Pressable 
                     onPress={adicionarAoCarrinho} 
                     style={{ 
                       backgroundColor: colors.verdeFolha, 
-                      paddingVertical: 16, 
-                      paddingHorizontal: 32, 
+                      paddingVertical: 14, 
+                      paddingHorizontal: 24, 
                       borderRadius: 12, 
-                      flex: 1,
                       alignItems: 'center',
                       borderWidth: 1.5,
-                      borderColor: colors.verdeFolha
+                      borderColor: colors.verdeFolha,
+                      width: '100%',
                     }}
                   >
-                    <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 16 }}>Adicionar ao Carrinho</Text>
+                    <Text style={{ color: colors.branco, fontWeight: 'bold', fontSize: 15 }}>Adicionar ao Carrinho</Text>
               </Pressable>
             </View>
               </ScrollView>

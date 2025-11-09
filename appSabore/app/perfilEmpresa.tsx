@@ -1539,70 +1539,19 @@ const PerfilEmpresa = () => {
                     </Text>
 
                     <View
-                      style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
-                      onLayout={(event) => {
-                        const width = event.nativeEvent.layout.width;
-                        setCardapioViewportWidth(width);
-                        atualizarMaxCardapioScroll(cardapioContentWidth, width);
+                      style={{
+                        width: '100%',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      <ScrollView
-                        ref={cardapioScrollRef}
-                        horizontal
-                        nestedScrollEnabled
-                        showsHorizontalScrollIndicator={false}
-                        onScroll={handleCardapioScroll}
-                        scrollEventThrottle={16}
-                        onContentSizeChange={(contentWidth) => {
-                          setCardapioContentWidth(contentWidth);
-                          atualizarMaxCardapioScroll(contentWidth, cardapioViewportWidth);
-                        }}
-                        decelerationRate="fast"
-                        snapToInterval={cardapioScrollStep}
-                        snapToAlignment="center"
-                        contentContainerStyle={{
-                          paddingHorizontal: isSmallScreen ? 12 : 24,
-                          alignItems: 'center',
-                        }}
-                        style={{ width: '100%' }}
-                      >
-                        {pratosAdaptados.map((prato, idx) => (
-                          <View
-                            key={`${prato.nome}-${idx}`}
-                            style={{
-                              width: cardapioCardWidth,
-                              marginRight: idx === pratosAdaptados.length - 1 ? 0 : 16,
-                            }}
-                          >
-                            <CardPrato
-                              {...prato}
-                              onPress={() => abrirModal(prato)}
-                              onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                            />
-                          </View>
-                        ))}
-                      </ScrollView>
-                    </View>
-
-                    {pratosAdaptados.length > 1 && (
-                      <View
-                        style={{
-                          position: 'absolute',
-                          top: 48,
-                          bottom: 8,
-                          left: 0,
-                          right: 0,
-                          justifyContent: 'center',
-                          pointerEvents: 'box-none',
-                        }}
-                      >
+                      {pratosAdaptados.length > 1 && (
                         <TouchableOpacity
                           onPress={() => scrollCardapio('left')}
                           disabled={!canScrollCardapioLeft}
                           activeOpacity={0.75}
                           style={{
-                            position: 'absolute',
-                            left: isSmallScreen ? 8 : 16,
                             width: 36,
                             height: 36,
                             borderRadius: 18,
@@ -1615,19 +1564,65 @@ const PerfilEmpresa = () => {
                             shadowOpacity: 0.2,
                             shadowRadius: 4,
                             elevation: 4,
-                            pointerEvents: canScrollCardapioLeft ? 'auto' : 'none',
+                            marginRight: isSmallScreen ? 8 : 12,
                           }}
                         >
                           <MaterialIcons name="chevron-left" size={20} color={colors.branco} />
                         </TouchableOpacity>
+                      )}
 
+                      <View
+                        style={{ flex: 1 }}
+                        onLayout={(event) => {
+                          const width = event.nativeEvent.layout.width;
+                          setCardapioViewportWidth(width);
+                          atualizarMaxCardapioScroll(cardapioContentWidth, width);
+                        }}
+                      >
+                        <ScrollView
+                          ref={cardapioScrollRef}
+                          horizontal
+                          nestedScrollEnabled
+                          showsHorizontalScrollIndicator={false}
+                          onScroll={handleCardapioScroll}
+                          scrollEventThrottle={16}
+                          onContentSizeChange={(contentWidth) => {
+                            setCardapioContentWidth(contentWidth);
+                            atualizarMaxCardapioScroll(contentWidth, cardapioViewportWidth);
+                          }}
+                          decelerationRate="fast"
+                          snapToInterval={cardapioScrollStep}
+                          snapToAlignment="center"
+                          contentContainerStyle={{
+                            paddingHorizontal: isSmallScreen ? 12 : 24,
+                            alignItems: 'center',
+                          }}
+                          style={{ flexGrow: 0 }}
+                        >
+                          {pratosAdaptados.map((prato, idx) => (
+                            <View
+                              key={`${prato.nome}-${idx}`}
+                              style={{
+                                width: cardapioCardWidth,
+                                marginRight: idx === pratosAdaptados.length - 1 ? 0 : 16,
+                              }}
+                            >
+                              <CardPrato
+                                {...prato}
+                                onPress={() => abrirModal(prato)}
+                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                              />
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+
+                      {pratosAdaptados.length > 1 && (
                         <TouchableOpacity
                           onPress={() => scrollCardapio('right')}
                           disabled={!canScrollCardapioRight}
                           activeOpacity={0.75}
                           style={{
-                            position: 'absolute',
-                            right: isSmallScreen ? 8 : 16,
                             width: 36,
                             height: 36,
                             borderRadius: 18,
@@ -1640,13 +1635,13 @@ const PerfilEmpresa = () => {
                             shadowOpacity: 0.2,
                             shadowRadius: 4,
                             elevation: 4,
-                            pointerEvents: canScrollCardapioRight ? 'auto' : 'none',
+                            marginLeft: isSmallScreen ? 8 : 12,
                           }}
                         >
                           <MaterialIcons name="chevron-right" size={20} color={colors.branco} />
                         </TouchableOpacity>
-                      </View>
-                    )}
+                      )}
+                    </View>
 
                     {isMobileRuntime && pratosAdaptados.length > 1 && (
                       <View
@@ -1661,10 +1656,6 @@ const PerfilEmpresa = () => {
                           borderRadius: 16,
                         }}
                       >
-                        <MaterialIcons name="touch-app" size={14} color={colors.branco} />
-                        <Text style={{ color: colors.branco, fontSize: 12, fontWeight: '600' }}>
-                          arraste para o lado
-                        </Text>
                       </View>
                     )}
                   </View>

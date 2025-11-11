@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Linking, ScrollView, StyleSheet, Platform, Clipboard, Dimensions, Modal, Pressable, TextInput, useWindowDimensions, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent, Animated, TouchableWithoutFeedback, PanResponder } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
@@ -109,13 +109,12 @@ const perfilEmpresaStyles = StyleSheet.create({
   },
   descricao: {
     color: colors.preto,
-    fontSize: 17,
+    fontSize: 16,
     textAlign: 'left',
-    marginTop: 8,
-    marginBottom: 14,
-    maxWidth: 400,
-    lineHeight: 22,
-    marginRight: 300,
+    marginTop: 12,
+    marginBottom: 12,
+    maxWidth: 640,
+    lineHeight: 24,
   },
   infoRapida: {
     flexDirection: 'row',
@@ -242,6 +241,94 @@ const perfilEmpresaStyles = StyleSheet.create({
     marginVertical: 8,
     width: '100%',
     borderRadius: 1,
+  },
+});
+
+const infoDrawerStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 16,
+  },
+  headerTextGroup: {
+    flex: 1,
+  },
+  title: {
+    color: colors.verdeFolha,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    color: colors.cinzaEscuro,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    color: colors.cinzaEscuro,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  sectionText: {
+    color: colors.preto,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.cinzaMuitoClaro,
+  },
+  chipText: {
+    color: colors.verdeFolha,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.cinzaMuitoClaro,
+    marginVertical: 12,
+    borderRadius: 1,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.verdeFolha,
+    marginBottom: 10,
+    gap: 12,
+  },
+  actionButtonText: {
+    color: colors.verdeFolha,
+    fontWeight: '600',
+    fontSize: 15,
+    flex: 1,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 8,
   },
 });
 
@@ -381,7 +468,6 @@ const PerfilEmpresa = () => {
   const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
   const isLargeScreenRuntime = screenWidth > 900;
   const isMobileRuntime = !isLargeScreenRuntime;
-  const socialIconSize = isSmallScreen ? 22 : isMediumScreen ? 24 : 28;
   const cardapioScrollRef = useRef<ScrollView>(null);
   const [cardapioScrollX, setCardapioScrollX] = useState(0);
   const [cardapioContentWidth, setCardapioContentWidth] = useState(0);
@@ -414,6 +500,68 @@ const PerfilEmpresa = () => {
     cardapioScrollRef.current.scrollTo({ x: target, animated: true });
     setCardapioScrollX(target);
   };
+
+  const [infoDrawerVisible, setInfoDrawerVisible] = useState(false);
+  const infoDrawerAnim = useRef(new Animated.Value(0)).current;
+  const drawerWidth = Math.min(screenWidth * 0.88, 420);
+  const drawerTranslateX = infoDrawerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [drawerWidth, 0],
+  });
+
+  const openInfoDrawer = () => {
+    if (infoDrawerVisible) return;
+    setInfoDrawerVisible(true);
+    requestAnimationFrame(() => {
+      Animated.timing(infoDrawerAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const closeInfoDrawer = () => {
+    Animated.timing(infoDrawerAnim, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setInfoDrawerVisible(false);
+      }
+    });
+  };
+
+  const edgePanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return (
+          !infoDrawerVisible &&
+          gestureState.dx > 20 &&
+          Math.abs(gestureState.dy) < 20 &&
+          gestureState.moveX < 40
+        );
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 60) {
+          openInfoDrawer();
+        }
+      },
+    })
+  ).current;
+
+  const drawerPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        infoDrawerVisible && gestureState.dx < -20 && Math.abs(gestureState.dy) < 20,
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -60) {
+          closeInfoDrawer();
+        }
+      },
+    })
+  ).current;
 
   const handleCardapioScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = event.nativeEvent?.contentOffset?.x || 0;
@@ -1081,6 +1229,19 @@ const PerfilEmpresa = () => {
     return urlCompleta;
   };
 
+  const construirUrlArquivo = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return null;
+
+    if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+      return trimmedUrl;
+    }
+
+    const path = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `${API_BASE_URL}${path}`;
+  };
+
   // Array de imagens padrão para variar entre restaurantes
   const imagensPadrao = [
     require('../assets/restaurante1.png'),
@@ -1107,7 +1268,7 @@ const PerfilEmpresa = () => {
       whatsapp: empresa.whatsapp || '#',
       maps: `https://maps.google.com/?q=${encodeURIComponent([empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', '))}`,
       email: `mailto:${empresa.email}`,
-      cardapio: empresa.cardapioUrl || '#',
+      cardapio: construirUrlArquivo(empresa.cardapioUrl) || '#',
     },
     // Endereço formatado
     endereco: [empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ') || 'Endereço não informado',
@@ -1137,7 +1298,19 @@ const PerfilEmpresa = () => {
   });
 
   return (
-    <View style={indexStyles.main}>
+    <View style={[indexStyles.main, { position: 'relative' }]}>
+      <View
+        {...edgePanResponder.panHandlers}
+        pointerEvents={infoDrawerVisible ? 'none' : 'auto'}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 24,
+          zIndex: 15,
+        }}
+      />
               <Header 
           logo="Saborê" 
           cartItemCount={cartItemCount}
@@ -1251,206 +1424,103 @@ const PerfilEmpresa = () => {
             )}
           </View>
 
-          {/* Info rápida responsiva */}
-          <View
+          {/* <Text
             style={[
-              perfilEmpresaStyles.infoRapidaContainer,
-              isMobileRuntime && perfilEmpresaStyles.infoRapidaContainerMobile,
+              perfilEmpresaStyles.descricao,
+              {
+                alignSelf: isMobileRuntime ? 'center' : 'flex-start',
+                textAlign: isMobileRuntime ? 'center' : 'left',
+              },
             ]}
           >
+            {empresaCompleta.descricao || empresaCompleta.funcionamento}
+          </Text> */}
+
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 10,
+              marginTop: 6,
+              alignItems: 'center',
+            }}
+          >
             <View
-              style={[
-                perfilEmpresaStyles.infoRapida,
-                isMobileRuntime && perfilEmpresaStyles.infoRapidaMobile,
-              ]}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: empresaCompleta.aberto
+                  ? 'rgba(34, 197, 94, 0.15)'
+                  : 'rgba(239, 68, 68, 0.15)',
+                borderRadius: 999,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+              }}
             >
-              <View
-                style={[
-                  perfilEmpresaStyles.infoItem,
-                  isMobileRuntime && perfilEmpresaStyles.infoItemMobile,
-                ]}
+              <Text
+                style={{
+                  color: empresaCompleta.aberto ? colors.verdeFolha : colors.vermelhoCambuci,
+                  fontWeight: '600',
+                  fontSize: 13,
+                }}
               >
-                <Text
-                  style={[
-                    perfilEmpresaStyles.infoText,
-                    isMobileRuntime && perfilEmpresaStyles.infoTextMobile,
-                  ]}
-                >
-                  {empresaCompleta.aberto ? 'Aberto' : 'Fechado'}
-                </Text>
-                <Text
-                  style={[
-                    perfilEmpresaStyles.infoIcon,
-                    isMobileRuntime && perfilEmpresaStyles.infoIconMobile,
-                  ]}
-                >
-                  {empresaCompleta.aberto ? '🟢' : '🔴'}
-                </Text>
-              </View>
-              <View
-                style={[
-                  perfilEmpresaStyles.infoItem,
-                  isMobileRuntime && perfilEmpresaStyles.infoItemMobile,
-                ]}
-              >
-                <FontAwesome
-                  name="phone"
-                  size={isLargeScreenRuntime ? 13 : 16}
-                  color={colors.verdeFolha}
-                  style={{ marginRight: 6 }}
-                />
-                <View style={{ flex: 1, marginRight: isLargeScreenRuntime ? 6 : 12 }}>
-                  <Text
-                    style={[
-                      perfilEmpresaStyles.infoText,
-                      isMobileRuntime && perfilEmpresaStyles.infoTextMobile,
-                    ]}
-                    numberOfLines={isLargeScreenRuntime ? 1 : 2}
-                    ellipsizeMode="tail"
-                  >
-                    {empresaCompleta.telefone || 'Não informado'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={perfilEmpresaStyles.copyBtn}
-                  onPress={() => handleCopy(empresaCompleta.telefone || '', 'telefone')}
-                  accessibilityLabel="Copiar telefone"
-                >
-                  <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>
-                    {copied === 'telefone' ? '✔️' : '📋'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View
-                style={[
-                  perfilEmpresaStyles.infoItem,
-                  isMobileRuntime && perfilEmpresaStyles.infoItemMobile,
-                ]}
-              >
-                <FontAwesome
-                  name="map-marker"
-                  size={isLargeScreenRuntime ? 13 : 16}
-                  color={colors.verdeFolha}
-                  style={{ marginRight: 6 }}
-                />
-                <View style={{ flex: 1, marginRight: isLargeScreenRuntime ? 6 : 12 }}>
-                  <Text
-                    style={[
-                      perfilEmpresaStyles.infoText,
-                      isMobileRuntime && perfilEmpresaStyles.infoTextMobile,
-                    ]}
-                    numberOfLines={isLargeScreenRuntime ? 1 : 3}
-                    ellipsizeMode="tail"
-                  >
-                    {empresaCompleta.endereco}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={perfilEmpresaStyles.copyBtn}
-                  onPress={() => handleCopy(empresaCompleta.endereco, 'endereco')}
-                  accessibilityLabel="Copiar endereço"
-                >
-                  <Text style={{ color: colors.verdeFolha, fontSize: 12 }}>
-                    {copied === 'endereco' ? '✔️' : '📋'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                {empresaCompleta.aberto ? 'Aberto agora' : 'Fechado no momento'}
+              </Text>
             </View>
           </View>
 
-          {/* Links sociais responsivos */}
-          <View
-            style={[
-              perfilEmpresaStyles.socialRowContainer,
-              isMobileRuntime && perfilEmpresaStyles.socialRowContainerMobile,
-            ]}
+          <TouchableOpacity
+            onPress={openInfoDrawer}
+            activeOpacity={0.85}
+            style={{
+              alignSelf: isMobileRuntime ? 'stretch' : 'flex-start',
+              marginTop: 18,
+              borderRadius: 14,
+              borderWidth: 1.5,
+              borderColor: colors.verdeFolha,
+              paddingVertical: 12,
+              paddingHorizontal: 18,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              backgroundColor: colors.branco,
+              shadowColor: colors.marromFeijao,
+              shadowOpacity: 0.08,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 3,
+            }}
           >
-            <View
-              style={[
-                perfilEmpresaStyles.socialRow,
-                isMobileRuntime && perfilEmpresaStyles.socialRowMobile,
-              ]}
-            >
-              <TouchableOpacity
-                accessibilityLabel="Facebook"
-                onPress={() => abrirLinkExterno(empresaCompleta.links.facebook, 'Facebook')}
-              >
-                <FontAwesome
-                  name="facebook"
-                  size={socialIconSize}
-                  color={colors.verdeFolha}
-                  style={perfilEmpresaStyles.socialIcon}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityLabel="Instagram"
-                onPress={() => abrirLinkExterno(empresaCompleta.links.instagram, 'Instagram')}
-              >
-                <FontAwesome
-                  name="instagram"
-                  size={socialIconSize}
-                  color={colors.verdeFolha}
-                  style={perfilEmpresaStyles.socialIcon}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityLabel="WhatsApp"
-                onPress={() => abrirLinkExterno(empresaCompleta.links.whatsapp, 'WhatsApp')}
-              >
-                <FontAwesome
-                  name="whatsapp"
-                  size={socialIconSize}
-                  color={colors.verdeFolha}
-                  style={perfilEmpresaStyles.socialIcon}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+            <MaterialIcons name="info-outline" size={20} color={colors.verdeFolha} />
+            <Text style={{ color: colors.verdeFolha, fontWeight: '600', fontSize: 15, flex: 1 }}>
+              Ver detalhes do restaurante
+            </Text>
+            <MaterialIcons name="chevron-right" size={22} color={colors.verdeFolha} />
+          </TouchableOpacity>
+
         </View>
 
-            {/* Área principal com seções institucionais e cards de pratos */}
-            <View style={{
+        {/* Área principal com cards do cardápio */}
+        <View
+          style={{
+            width: '100%',
+            maxWidth: 1400,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: isSmallScreen ? 24 : 48,
+            marginBottom: 32,
+            paddingHorizontal: isSmallScreen ? 12 : 20,
+          }}
+        >
+          <View
+            style={{
               width: '100%',
-              maxWidth: 1400,
-              flexDirection: isLargeScreen ? 'row' : 'column',
-              alignItems: isSmallScreen ? 'center' : 'flex-start',
+              maxWidth: 1200,
+              alignItems: 'center',
               justifyContent: 'center',
-              marginTop: isSmallScreen ? 24 : 60,
-              marginBottom: 32,
-              paddingHorizontal: isSmallScreen ? 12 : 20,
-            }}>
-              {/* Seções institucionais na esquerda */}
-              <View style={{
-                width: isLargeScreen ? 350 : '100%',
-                marginBottom: isLargeScreen ? 0 : 20,
-                marginRight: isLargeScreen ? 40 : 0,
-              }}>
-                <View style={perfilEmpresaStyles.card}>
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📍</Text>Informações</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresaCompleta.funcionamento}</Text>
-                  <View style={perfilEmpresaStyles.separator} />
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>🗓️</Text>Horário</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresaCompleta.horario || 'Horário não informado'}</Text>
-                  <View style={perfilEmpresaStyles.separator} />
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>👥</Text>Lotação</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>
-                    {empresaCompleta.lotacao ? `Capacidade para ${empresaCompleta.lotacao} pessoas` : 'Capacidade não informada'}
-                  </Text>
-                  <View style={perfilEmpresaStyles.separator} />
-                  <Text style={perfilEmpresaStyles.cardTitle}><Text style={perfilEmpresaStyles.cardTitleIcon}>📋</Text>Reservas</Text>
-                  <Text style={perfilEmpresaStyles.cardText}>{empresaCompleta.reservas}</Text>
-                </View>
-              </View>
-
-              {/* Cards de Pratos por Categoria */}
-              <View style={{
-                flex: 1,
-                maxWidth: 1200,
-                alignItems: 'center',
-                justifyContent: 'center',
-                display: 'flex',
-              }}>
-                {loadingItens || loadingAvaliacoes ? (
+            }}
+          >
+            {loadingItens || loadingAvaliacoes ? (
                   // Estado de loading dos pratos e avaliações
                   <View style={{ 
                     width: '100%', 
@@ -1469,7 +1539,7 @@ const PerfilEmpresa = () => {
                       {loadingItens ? 'Carregando pratos do restaurante...' : 'Carregando avaliações dos pratos...'}
                     </Text>
                   </View>
-                ) : pratosAdaptados.length === 0 ? (
+            ) : pratosAdaptados.length === 0 ? (
                   // Estado vazio - sem pratos cadastrados
                   <View style={{
                     width: '100%',
@@ -1523,20 +1593,34 @@ const PerfilEmpresa = () => {
                       </Text>
                     </View>
                   </View>
-                ) : (
+            ) : (
                   // Estado com pratos - exibir carrossel horizontal
                   <View style={{ width: '100%', alignItems: 'center', marginBottom: 24, position: 'relative' }}>
-                    <Text
+                    <View
                       style={{
-                        color: colors.verdeFolha,
-                        fontWeight: 'bold',
-                        fontSize: isSmallScreen ? 20 : 24,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
                         marginBottom: 12,
-                        textAlign: 'center',
                       }}
                     >
-                      Cardápio
-                    </Text>
+                      <Text
+                        style={{
+                          color: colors.verdeFolha,
+                          fontWeight: 'bold',
+                          fontSize: isSmallScreen ? 20 : 24,
+                          textAlign: 'center',
+                        }}
+                      >
+                        Faça seu pedido
+                      </Text>
+                      <MaterialIcons
+                        name="sticky-note-2"
+                        size={isSmallScreen ? 20 : 24}
+                        color={colors.amareloOuro}
+                      />
+                    </View>
 
                     <View
                       style={{
@@ -1660,9 +1744,170 @@ const PerfilEmpresa = () => {
                     )}
                   </View>
                 )}
-              </View>
-            </View>
+          </View>
+        </View>
       </ScrollView>
+
+      {infoDrawerVisible && (
+        <Modal
+          transparent
+          visible={infoDrawerVisible}
+          animationType="fade"
+          onRequestClose={closeInfoDrawer}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+            <TouchableWithoutFeedback onPress={closeInfoDrawer}>
+              <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />
+            </TouchableWithoutFeedback>
+            <Animated.View
+              {...drawerPanResponder.panHandlers}
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                right: 0,
+                width: drawerWidth,
+                backgroundColor: colors.branco,
+                paddingTop: Platform.select({ ios: 60, default: 48 }),
+                shadowColor: colors.preto,
+                shadowOpacity: 0.25,
+                shadowRadius: 12,
+                shadowOffset: { width: -4, height: 0 },
+                elevation: 12,
+                transform: [{ translateX: drawerTranslateX }],
+              }}
+            >
+              <View style={infoDrawerStyles.container}>
+                <View style={infoDrawerStyles.headerRow}>
+                  <View style={infoDrawerStyles.headerTextGroup}>
+                    <Text style={infoDrawerStyles.title}>{empresaCompleta.nome}</Text>
+                    <Text style={infoDrawerStyles.subtitle}>
+                      {[empresaCompleta.cidade, empresaCompleta.estado].filter(Boolean).join(' / ') ||
+                        'Localização não informada'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={closeInfoDrawer}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <MaterialIcons name="close" size={24} color={colors.cinzaEscuro} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 32 }}
+                >
+                  <View style={infoDrawerStyles.section}>
+                    <Text style={infoDrawerStyles.sectionLabel}>Descrição</Text>
+                    <Text style={infoDrawerStyles.sectionText}>
+                      {empresaCompleta.funcionamento}
+                    </Text>
+                  </View>
+
+                  <View style={infoDrawerStyles.section}>
+                    <Text style={infoDrawerStyles.sectionLabel}>Horário</Text>
+                    <Text style={infoDrawerStyles.sectionText}>
+                      {empresaCompleta.horario || 'Horário não informado'}
+                    </Text>
+                  </View>
+
+                  <View style={infoDrawerStyles.section}>
+                    <Text style={infoDrawerStyles.sectionLabel}>Lotação</Text>
+                    <Text style={infoDrawerStyles.sectionText}>
+                      {empresaCompleta.lotacao
+                        ? `Capacidade para ${empresaCompleta.lotacao} pessoas`
+                        : 'Capacidade não informada'}
+                    </Text>
+                  </View>
+
+                  <View style={infoDrawerStyles.section}>
+                    <Text style={infoDrawerStyles.sectionLabel}>Reservas</Text>
+                    <Text style={infoDrawerStyles.sectionText}>{empresaCompleta.reservas}</Text>
+                  </View>
+
+                  <View style={infoDrawerStyles.divider} />
+
+                  <View style={infoDrawerStyles.section}>
+                    <Text style={infoDrawerStyles.sectionLabel}>Contato</Text>
+                    <TouchableOpacity
+                      onPress={() => handleCopy(empresaCompleta.telefone || '', 'telefone')}
+                      style={infoDrawerStyles.actionButton}
+                    >
+                      <MaterialIcons name="content-copy" size={20} color={colors.verdeFolha} />
+                      <Text style={infoDrawerStyles.actionButtonText}>
+                        {empresaCompleta.telefone || 'Telefone não informado'}
+                      </Text>
+                      <Text style={{ color: colors.verdeFolha, fontWeight: '600', fontSize: 12 }}>
+                        {copied === 'telefone' ? 'Copiado!' : 'Copiar'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => abrirLinkExterno(empresaCompleta.links.whatsapp, 'WhatsApp')}
+                      style={[infoDrawerStyles.actionButton, { borderColor: colors.amareloOuro }]}
+                    >
+                      <FontAwesome name="whatsapp" size={20} color={colors.amareloOuro} />
+                      <Text style={infoDrawerStyles.actionButtonText}>Conversar pelo WhatsApp</Text>
+                      <MaterialIcons name="open-in-new" size={18} color={colors.amareloOuro} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleCopy(empresaCompleta.endereco || '', 'endereco')}
+                      style={infoDrawerStyles.actionButton}
+                    >
+                      <MaterialIcons name="place" size={20} color={colors.verdeFolha} />
+                      <Text style={infoDrawerStyles.actionButtonText}>
+                        {empresaCompleta.endereco}
+                      </Text>
+                      <Text style={{ color: colors.verdeFolha, fontWeight: '600', fontSize: 12 }}>
+                        {copied === 'endereco' ? 'Copiado!' : 'Copiar'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => abrirLinkExterno(empresaCompleta.links.maps, 'Mapa')}
+                      style={[infoDrawerStyles.actionButton, { borderColor: colors.azulInfo }]}
+                    >
+                      <MaterialIcons name="map" size={20} color={colors.azulInfo} />
+                      <Text style={infoDrawerStyles.actionButtonText}>Abrir no Google Maps</Text>
+                      <MaterialIcons name="open-in-new" size={18} color={colors.azulInfo} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={infoDrawerStyles.divider} />
+
+                  <View style={infoDrawerStyles.section}>
+                    <Text style={infoDrawerStyles.sectionLabel}>Redes Sociais</Text>
+                    <View style={infoDrawerStyles.socialRow}>
+                      <TouchableOpacity
+                        onPress={() => abrirLinkExterno(empresaCompleta.links.facebook, 'Facebook')}
+                      >
+                        <FontAwesome name="facebook" size={22} color={colors.verdeFolha} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => abrirLinkExterno(empresaCompleta.links.instagram, 'Instagram')}
+                      >
+                        <FontAwesome name="instagram" size={22} color={colors.verdeFolha} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => abrirLinkExterno(empresaCompleta.links.site, 'Site')}
+                      >
+                        <MaterialIcons name="public" size={24} color={colors.verdeFolha} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => abrirLinkExterno(empresaCompleta.links.cardapio, 'Cardápio')}
+                      >
+                        <MaterialIcons name="restaurant-menu" size={24} color={colors.verdeFolha} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </ScrollView>
+              </View>
+            </Animated.View>
+          </View>
+        </Modal>
+      )}
 
       <Modal
         visible={modalVisible}

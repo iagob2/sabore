@@ -16,6 +16,8 @@ import { toast } from '../hooks/use-toast';
 import { useCart, generateCartId, CartItem } from '../contexts/CartContext';
 import { useAuthSession } from '../contexts/AuthContext';
 
+type ItemRestauranteComCategoria = ItemRestauranteResponse & { categoria?: string | null };
+
 const perfilEmpresaStyles = StyleSheet.create({
   bannerContainer: {
     width: '100%',
@@ -468,37 +470,68 @@ const PerfilEmpresa = () => {
   const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
   const isLargeScreenRuntime = screenWidth > 900;
   const isMobileRuntime = !isLargeScreenRuntime;
-  const cardapioScrollRef = useRef<ScrollView>(null);
-  const [cardapioScrollX, setCardapioScrollX] = useState(0);
-  const [cardapioContentWidth, setCardapioContentWidth] = useState(0);
-  const [cardapioViewportWidth, setCardapioViewportWidth] = useState(screenWidth);
-  const [maxCardapioScroll, setMaxCardapioScroll] = useState(0);
+  const categoriaScrollRefs = useRef<Record<string, ScrollView | null>>({});
+  const [categoriaScrollX, setCategoriaScrollX] = useState<Record<string, number>>({});
+  const [categoriaContentWidth, setCategoriaContentWidth] = useState<Record<string, number>>({});
+  const [categoriaViewportWidth, setCategoriaViewportWidth] = useState<Record<string, number>>({});
   const cardapioCardWidth = isSmallScreen ? 220 : isMediumScreen ? 240 : 260;
   const cardapioScrollStep = cardapioCardWidth + 16;
-  const canScrollCardapioLeft = cardapioScrollX > 12;
-  const canScrollCardapioRight = cardapioScrollX < maxCardapioScroll - 12;
-  const atualizarMaxCardapioScroll = (contentWidth: number, viewportWidth: number) => {
-    const maxScrollValue = Math.max(0, contentWidth - viewportWidth);
-    setMaxCardapioScroll(maxScrollValue);
-
-    if (cardapioScrollX > maxScrollValue) {
-      const clamped = Math.max(0, maxScrollValue);
-      setCardapioScrollX(clamped);
-      requestAnimationFrame(() => {
-        cardapioScrollRef.current?.scrollTo({ x: clamped, animated: false });
-      });
-    }
+  const getMaxScrollCategoria = (categoria: string) => {
+    const content = categoriaContentWidth[categoria] ?? 0;
+    const viewport = categoriaViewportWidth[categoria] ?? screenWidth;
+    return Math.max(0, content - viewport);
   };
 
-  const scrollCardapio = (direction: 'left' | 'right') => {
-    if (!cardapioScrollRef.current) return;
+  const scrollCategoria = (categoria: string, direction: 'left' | 'right') => {
+    const ref = categoriaScrollRefs.current[categoria];
+    if (!ref) return;
+    const currentScroll = categoriaScrollX[categoria] ?? 0;
+    const maxScroll = getMaxScrollCategoria(categoria);
     const target =
       direction === 'left'
-        ? Math.max(0, cardapioScrollX - cardapioScrollStep)
-        : Math.min(maxCardapioScroll, cardapioScrollX + cardapioScrollStep);
+        ? Math.max(0, currentScroll - cardapioScrollStep)
+        : Math.min(maxScroll, currentScroll + cardapioScrollStep);
 
-    cardapioScrollRef.current.scrollTo({ x: target, animated: true });
-    setCardapioScrollX(target);
+    ref.scrollTo({ x: target, animated: true });
+    setCategoriaScrollX(prev => ({ ...prev, [categoria]: target }));
+  };
+
+  const ajustarScrollLimite = (categoria: string, maxScroll: number) => {
+    const ref = categoriaScrollRefs.current[categoria];
+    if (ref) {
+      ref.scrollTo({ x: maxScroll, animated: false });
+    }
+    setCategoriaScrollX(prev => ({ ...prev, [categoria]: maxScroll }));
+  };
+
+  const handleCategoriaScroll = (categoria: string, event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = event.nativeEvent?.contentOffset?.x || 0;
+    setCategoriaScrollX(prev => ({ ...prev, [categoria]: x }));
+  };
+
+  const atualizarCategoriaViewport = (categoria: string, viewportWidth: number) => {
+    setCategoriaViewportWidth(prev => {
+      const updated = { ...prev, [categoria]: viewportWidth };
+      const maxScroll = Math.max(0, (categoriaContentWidth[categoria] ?? 0) - viewportWidth);
+      const currentScroll = categoriaScrollX[categoria] ?? 0;
+      if (currentScroll > maxScroll) {
+        requestAnimationFrame(() => ajustarScrollLimite(categoria, maxScroll));
+      }
+      return updated;
+    });
+  };
+
+  const atualizarCategoriaContentWidth = (categoria: string, contentWidth: number) => {
+    setCategoriaContentWidth(prev => {
+      const updated = { ...prev, [categoria]: contentWidth };
+      const viewport = categoriaViewportWidth[categoria] ?? screenWidth;
+      const maxScroll = Math.max(0, contentWidth - viewport);
+      const currentScroll = categoriaScrollX[categoria] ?? 0;
+      if (currentScroll > maxScroll) {
+        requestAnimationFrame(() => ajustarScrollLimite(categoria, maxScroll));
+      }
+      return updated;
+    });
   };
 
   const [infoDrawerVisible, setInfoDrawerVisible] = useState(false);
@@ -563,11 +596,6 @@ const PerfilEmpresa = () => {
     })
   ).current;
 
-  const handleCardapioScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const x = event.nativeEvent?.contentOffset?.x || 0;
-    setCardapioScrollX(x);
-  };
-  
   const normalizarUrl = (url?: string | null) => {
     if (!url) return '';
     const trimmed = url.trim();
@@ -638,7 +666,7 @@ const PerfilEmpresa = () => {
 
 
   // Função para adaptar item da API para formato do CardPrato
-  const adaptarItemParaCardPrato = (item: ItemRestauranteResponse, index: number = 0) => {
+  const adaptarItemParaCardPrato = (item: ItemRestauranteComCategoria, index: number = 0) => {
     console.log(`🔄 Adaptando item ${index + 1} (ID: ${item.id}):`, item.nome);
     
     // Array de imagens padrão para variar - mapeamento inteligente por nome
@@ -771,7 +799,8 @@ const PerfilEmpresa = () => {
       preco: item.preco || 0,
       description: item.descricao || 'Delicioso prato preparado com carinho',
       image: imageSource,
-      category: 'Prato Principal',
+      categoria: item.categoria || null,
+      category: item.categoria || 'Prato Principal',
       available: true,
       ingredients: ingredientes, // Array para outros componentes
       prepTime: 20,
@@ -1202,6 +1231,19 @@ const PerfilEmpresa = () => {
   
   console.log('📋 Total de pratos adaptados:', pratosAdaptados.length);
 
+  const categoriasMap = pratosAdaptados.reduce((acc: Record<string, typeof pratosAdaptados>, prato) => {
+    const categoria = (prato.categoria || prato.category || 'Outros').trim() || 'Outros';
+    if (!acc[categoria]) {
+      acc[categoria] = [];
+    }
+    acc[categoria].push(prato);
+    return acc;
+  }, {});
+
+  const categoriasOrdenadas = Object.entries(categoriasMap)
+    .map(([categoria, pratos]) => ({ categoria, pratos }))
+    .sort((a, b) => a.categoria.localeCompare(b.categoria, 'pt-BR', { sensitivity: 'base' }));
+
   if (!empresa) {
     return null;
   }
@@ -1594,155 +1636,155 @@ const PerfilEmpresa = () => {
                     </View>
                   </View>
             ) : (
-                  // Estado com pratos - exibir carrossel horizontal
-                  <View style={{ width: '100%', alignItems: 'center', marginBottom: 24, position: 'relative' }}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: colors.verdeFolha,
-                          fontWeight: 'bold',
-                          fontSize: isSmallScreen ? 20 : 24,
-                          textAlign: 'center',
-                        }}
-                      >
-                        Faça seu pedido
-                      </Text>
-                      <MaterialIcons
-                        name="sticky-note-2"
-                        size={isSmallScreen ? 20 : 24}
-                        color={colors.amareloOuro}
-                      />
-                    </View>
+                  categoriasOrdenadas.map(({ categoria, pratos }) => {
+                    const maxScroll = getMaxScrollCategoria(categoria);
+                    const currentScroll = categoriaScrollX[categoria] ?? 0;
+                    const canScrollLeft = currentScroll > 12;
+                    const canScrollRight = currentScroll < maxScroll - 12;
 
-                    <View
-                      style={{
-                        width: '100%',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {pratosAdaptados.length > 1 && (
-                        <TouchableOpacity
-                          onPress={() => scrollCardapio('left')}
-                          disabled={!canScrollCardapioLeft}
-                          activeOpacity={0.75}
+                    return (
+                      <View
+                        key={categoria}
+                        style={{ width: '100%', alignItems: 'center', marginBottom: 32, position: 'relative' }}
+                      >
+                        <View
                           style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: colors.overlayEscuro,
+                            flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            opacity: canScrollCardapioLeft ? 1 : 0.3,
-                            shadowColor: colors.preto,
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 4,
-                            marginRight: isSmallScreen ? 8 : 12,
+                            gap: 8,
+                            marginBottom: 12,
                           }}
                         >
-                          <MaterialIcons name="chevron-left" size={20} color={colors.branco} />
-                        </TouchableOpacity>
-                      )}
+                          <MaterialIcons
+                            name="sticky-note-2"
+                            size={isSmallScreen ? 20 : 22}
+                            color={colors.amareloOuro}
+                          />
+                          <Text
+                            style={{
+                              color: colors.verdeFolha,
+                              fontWeight: 'bold',
+                              fontSize: isSmallScreen ? 20 : 24,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {categoria}
+                          </Text>
+                          <MaterialIcons
+                            name="sticky-note-2"
+                            size={isSmallScreen ? 20 : 22}
+                            color={colors.amareloOuro}
+                          />
+                        </View>
 
-                      <View
-                        style={{ flex: 1 }}
-                        onLayout={(event) => {
-                          const width = event.nativeEvent.layout.width;
-                          setCardapioViewportWidth(width);
-                          atualizarMaxCardapioScroll(cardapioContentWidth, width);
-                        }}
-                      >
-                        <ScrollView
-                          ref={cardapioScrollRef}
-                          horizontal
-                          nestedScrollEnabled
-                          showsHorizontalScrollIndicator={false}
-                          onScroll={handleCardapioScroll}
-                          scrollEventThrottle={16}
-                          onContentSizeChange={(contentWidth) => {
-                            setCardapioContentWidth(contentWidth);
-                            atualizarMaxCardapioScroll(contentWidth, cardapioViewportWidth);
-                          }}
-                          decelerationRate="fast"
-                          snapToInterval={cardapioScrollStep}
-                          snapToAlignment="center"
-                          contentContainerStyle={{
-                            paddingHorizontal: isSmallScreen ? 12 : 24,
+                        <View
+                          style={{
+                            width: '100%',
+                            flexDirection: 'row',
                             alignItems: 'center',
+                            justifyContent: 'center',
                           }}
-                          style={{ flexGrow: 0 }}
                         >
-                          {pratosAdaptados.map((prato, idx) => (
-                            <View
-                              key={`${prato.nome}-${idx}`}
+                          {pratos.length > 1 && (
+                            <TouchableOpacity
+                              onPress={() => scrollCategoria(categoria, 'left')}
+                              disabled={!canScrollLeft}
+                              activeOpacity={0.75}
                               style={{
-                                width: cardapioCardWidth,
-                                marginRight: idx === pratosAdaptados.length - 1 ? 0 : 16,
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                backgroundColor: colors.overlayEscuro,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: canScrollLeft ? 1 : 0.3,
+                                shadowColor: colors.preto,
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 4,
+                                elevation: 4,
+                                marginRight: isSmallScreen ? 8 : 12,
                               }}
                             >
-                              <CardPrato
-                                {...prato}
-                                onPress={() => abrirModal(prato)}
-                                onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
-                              />
-                            </View>
-                          ))}
-                        </ScrollView>
-                      </View>
+                              <MaterialIcons name="chevron-left" size={20} color={colors.branco} />
+                            </TouchableOpacity>
+                          )}
 
-                      {pratosAdaptados.length > 1 && (
-                        <TouchableOpacity
-                          onPress={() => scrollCardapio('right')}
-                          disabled={!canScrollCardapioRight}
-                          activeOpacity={0.75}
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: colors.overlayEscuro,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: canScrollCardapioRight ? 1 : 0.3,
-                            shadowColor: colors.preto,
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 4,
-                            marginLeft: isSmallScreen ? 8 : 12,
-                          }}
-                        >
-                          <MaterialIcons name="chevron-right" size={20} color={colors.branco} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                          <View
+                            style={{ flex: 1 }}
+                            onLayout={(event) => {
+                              const width = event.nativeEvent.layout.width;
+                              atualizarCategoriaViewport(categoria, width);
+                            }}
+                          >
+                            <ScrollView
+                              ref={(ref) => {
+                                categoriaScrollRefs.current[categoria] = ref;
+                              }}
+                              horizontal
+                              nestedScrollEnabled
+                              showsHorizontalScrollIndicator={false}
+                              onScroll={(event) => handleCategoriaScroll(categoria, event)}
+                              scrollEventThrottle={16}
+                              onContentSizeChange={(contentWidth) => {
+                                atualizarCategoriaContentWidth(categoria, contentWidth);
+                              }}
+                              decelerationRate="fast"
+                              snapToInterval={cardapioScrollStep}
+                              snapToAlignment="center"
+                              contentContainerStyle={{
+                                paddingHorizontal: isSmallScreen ? 12 : 24,
+                                alignItems: 'center',
+                              }}
+                              style={{ flexGrow: 0 }}
+                            >
+                              {pratos.map((prato, idx) => (
+                                <View
+                                  key={`${categoria}-${prato.nome}-${idx}`}
+                                  style={{
+                                    width: cardapioCardWidth,
+                                    marginRight: idx === pratos.length - 1 ? 0 : 16,
+                                  }}
+                                >
+                                  <CardPrato
+                                    {...prato}
+                                    onPress={() => abrirModal(prato)}
+                                    onPressAvaliacoes={() => verAvaliacoesPrato(prato)}
+                                  />
+                                </View>
+                              ))}
+                            </ScrollView>
+                          </View>
 
-                    {isMobileRuntime && pratosAdaptados.length > 1 && (
-                      <View
-                        style={{
-                          marginTop: 12,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 6,
-                          backgroundColor: 'rgba(0,0,0,0.25)',
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 16,
-                        }}
-                      >
+                          {pratos.length > 1 && (
+                            <TouchableOpacity
+                              onPress={() => scrollCategoria(categoria, 'right')}
+                              disabled={!canScrollRight}
+                              activeOpacity={0.75}
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                backgroundColor: colors.overlayEscuro,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: canScrollRight ? 1 : 0.3,
+                                shadowColor: colors.preto,
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 4,
+                                elevation: 4,
+                                marginLeft: isSmallScreen ? 8 : 12,
+                              }}
+                            >
+                              <MaterialIcons name="chevron-right" size={20} color={colors.branco} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       </View>
-                    )}
-                  </View>
+                    );
+                  })
                 )}
           </View>
         </View>

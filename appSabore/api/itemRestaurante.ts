@@ -5,6 +5,7 @@ export interface ItemRestauranteCreate {
   descricao?: string; // Usado para ingredientes no frontend
   preco: number; // Double no backend
   imagemUrl?: string;
+  categoria?: string;
   restaurante: {
     id: number;
   };
@@ -16,6 +17,7 @@ export interface ItemRestauranteResponse {
   descricao?: string; // Usado para ingredientes no frontend
   preco: number; // Double no backend
   imagemUrl?: string;
+  categoria?: string;
   restaurante: {
     id: number;
     nome: string;

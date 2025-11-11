@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Animated, KeyboardTypeOptions } from 'react-native';
 import { inputStyles } from '../style/inputStyles';
 import { colors } from '../style/colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ interface InputProps {
   onIconPress?: () => void;
   error?: string;
   disabled?: boolean;
+  keyboardType?: KeyboardTypeOptions;
 }
 
 const Input: React.FC<InputProps> = ({ 
@@ -26,7 +27,8 @@ const Input: React.FC<InputProps> = ({
   icon,
   onIconPress,
   error,
-  disabled = false
+  disabled = false,
+  keyboardType
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -97,6 +99,7 @@ const Input: React.FC<InputProps> = ({
           editable={!disabled}
           autoCapitalize="none"
           autoCorrect={false}
+          keyboardType={keyboardType}
         />
         {secureTextEntry && (
           <TouchableOpacity

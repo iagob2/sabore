@@ -95,6 +95,63 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const isLargeScreen = SCREEN_WIDTH > 700;
 const isMediumScreen = SCREEN_WIDTH > 500;
 
+const formatCep = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  const part1 = digits.slice(0, 5);
+  const part2 = digits.slice(5, 8);
+
+  if (!part2) {
+    return part1;
+  }
+
+  return `${part1}-${part2}`;
+};
+
+const formatCpf = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  const part1 = digits.slice(0, 3);
+  const part2 = digits.slice(3, 6);
+  const part3 = digits.slice(6, 9);
+  const part4 = digits.slice(9, 11);
+
+  let formatted = part1;
+  if (part2) {
+    formatted += `.${part2}`;
+  }
+  if (part3) {
+    formatted += `.${part3}`;
+  }
+  if (part4) {
+    formatted += `-${part4}`;
+  }
+
+  return formatted;
+};
+
+const formatTelefone = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  const ddd = digits.slice(0, 2);
+  const middle = digits.slice(2, digits.length > 10 ? 7 : 6);
+  const last = digits.slice(digits.length > 10 ? 7 : 6);
+
+  if (!ddd) {
+    return digits;
+  }
+
+  let formatted = `(${ddd}`;
+  formatted += ')';
+
+  if (middle) {
+    formatted += ` ${middle}`;
+  }
+
+  if (last) {
+    formatted += `-${last}`;
+  }
+
+  return formatted.trim();
+};
+
 const Cadastro = () => {
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -115,6 +172,25 @@ const Cadastro = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const router = useRouter();
+
+  const handleCpfChange = (text: string) => {
+    const digitsOnly = text.replace(/\D/g, '').slice(0, 11);
+    setCpf(digitsOnly);
+  };
+
+  const handleTelefoneChange = (text: string) => {
+    const digitsOnly = text.replace(/\D/g, '').slice(0, 11);
+    setTelefone(digitsOnly);
+  };
+
+  const handleCepChange = (text: string) => {
+    const digitsOnly = text.replace(/\D/g, '').slice(0, 8);
+    if (digitsOnly === cep) {
+      return;
+    }
+    setCep(digitsOnly);
+    tryAutoFillByCep(digitsOnly);
+  };
 
   const handleRegister = async () => {
     if (!nome || !cpf || !email || !senha) {
@@ -155,32 +231,30 @@ const Cadastro = () => {
     }
   };
 
-  const tryAutoFillByCep = async (value: string) => {
-    setCep(value);
-    const digits = (value || '').replace(/\D/g, '');
-    if (digits.length === 8) {
-      setIsFetchingCep(true);
-      setErro('');
-      try {
-        console.log('🔍 Iniciando busca de CEP no componente:', digits);
-        const endereco = await buscarEnderecoPorCep(digits);
-        console.log('✅ Endereço recebido:', endereco);
-        setRua(endereco.rua || '');
-        setBairro(endereco.bairro || '');
-        setCidade(endereco.cidade || '');
-        setEstado(endereco.estado || '');
-      } catch (e: any) {
-        console.error('❌ Erro ao buscar CEP no componente:', e);
-        const errorMessage = e?.message || 'Falha ao buscar CEP. Verifique sua conexão e tente novamente.';
-        setErro(errorMessage);
-      } finally {
-        setIsFetchingCep(false);
-      }
-    } else {
-      // Limpa campos se CEP não está completo
+  const tryAutoFillByCep = async (digits: string) => {
+    if (digits.length !== 8) {
       if (digits.length < 8) {
         setErro('');
       }
+      return;
+    }
+
+    setIsFetchingCep(true);
+    setErro('');
+    try {
+      console.log('🔍 Iniciando busca de CEP no componente:', digits);
+      const endereco = await buscarEnderecoPorCep(digits);
+      console.log('✅ Endereço recebido:', endereco);
+      setRua(endereco.rua || '');
+      setBairro(endereco.bairro || '');
+      setCidade(endereco.cidade || '');
+      setEstado(endereco.estado || '');
+    } catch (e: any) {
+      console.error('❌ Erro ao buscar CEP no componente:', e);
+      const errorMessage = e?.message || 'Falha ao buscar CEP. Verifique sua conexão e tente novamente.';
+      setErro(errorMessage);
+    } finally {
+      setIsFetchingCep(false);
     }
   };
 
@@ -287,8 +361,8 @@ const Cadastro = () => {
                   <Input
                     label="Telefone"
                     placeholder="Digite seu telefone"
-                    value={telefone}
-                    onChangeText={setTelefone}
+                    value={formatTelefone(telefone)}
+                    onChangeText={handleTelefoneChange}
                   />
                 </View>
               </View>
@@ -299,8 +373,9 @@ const Cadastro = () => {
                   <Input
                     label="CPF"
                     placeholder="Digite seu CPF"
-                    value={cpf}
-                    onChangeText={setCpf}
+                    value={formatCpf(cpf)}
+                    onChangeText={handleCpfChange}
+                    keyboardType="numeric"
                   />
                 </View>
                 <View style={cadastroStyles.formColumn}>
@@ -319,9 +394,10 @@ const Cadastro = () => {
                   <Input
                     label="CEP"
                     placeholder="Digite seu CEP"
-                    value={cep}
-                    onChangeText={tryAutoFillByCep}
+                    value={formatCep(cep)}
+                    onChangeText={handleCepChange}
                     disabled={isFetchingCep}
+                    keyboardType="numeric"
                   />
                   {isFetchingCep && (
                     <View style={{ position: 'absolute', right: 12, top: '50%', marginTop: 22 }}>
@@ -355,6 +431,7 @@ const Cadastro = () => {
                     placeholder="Digite o número"
                     value={numero}
                     onChangeText={setNumero}
+                    keyboardType="numeric"
                   />
                 </View>
               </View>
@@ -393,16 +470,17 @@ const Cadastro = () => {
                   <Input
                     label="Telefone"
                     placeholder="Digite seu telefone"
-                    value={telefone}
-                    onChangeText={setTelefone}
+                    value={formatTelefone(telefone)}
+                    onChangeText={handleTelefoneChange}
                   />
                 </View>
                 <View style={{ width: '100%', marginBottom: 10 }}>
                   <Input
                     label="CPF"
                     placeholder="Digite seu CPF"
-                    value={cpf}
-                    onChangeText={setCpf}
+                    value={formatCpf(cpf)}
+                    onChangeText={handleCpfChange}
+                    keyboardType="numeric"
                   />
                 </View>
                 <View style={{ width: '100%', marginBottom: 10 }}>
@@ -417,9 +495,10 @@ const Cadastro = () => {
                   <Input
                     label="CEP"
                     placeholder="Digite seu CEP"
-                    value={cep}
-                    onChangeText={tryAutoFillByCep}
+                    value={formatCep(cep)}
+                    onChangeText={handleCepChange}
                     disabled={isFetchingCep}
+                    keyboardType="numeric"
                   />
                   {isFetchingCep && (
                     <View style={{ position: 'absolute', right: 12, top: '50%', marginTop: 22 }}>
@@ -449,6 +528,7 @@ const Cadastro = () => {
                     placeholder="Digite o número"
                     value={numero}
                     onChangeText={setNumero}
+                    keyboardType="numeric"
                   />
                 </View>
                 <View style={{ width: '100%', marginBottom: 10 }}>

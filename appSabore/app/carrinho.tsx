@@ -53,6 +53,64 @@ const Carrinho = () => {
     }
   }, [carrinho, itemCount, restauranteNome, isAuthenticated, session]);
 
+  const lastConflictItemRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (carrinho.length === 0) {
+      lastConflictItemRef.current = null;
+      return;
+    }
+
+    const primeiroRestauranteId = carrinho[0]?.restauranteId;
+    if (!primeiroRestauranteId) {
+      lastConflictItemRef.current = null;
+      return;
+    }
+
+    const itemConflitante = carrinho.find(
+      (item) => item.restauranteId !== primeiroRestauranteId
+    );
+
+    if (!itemConflitante) {
+      lastConflictItemRef.current = null;
+      return;
+    }
+
+    if (lastConflictItemRef.current === itemConflitante.cartId) {
+      return;
+    }
+
+    lastConflictItemRef.current = itemConflitante.cartId;
+
+    const restauranteAtualNome = carrinho[0]?.restauranteNome || 'outro restaurante';
+    const restauranteNovoNome = itemConflitante.restauranteNome || 'este restaurante';
+    const mensagem =
+      `Você já possui itens do restaurante "${restauranteAtualNome}" no carrinho. ` +
+      `Para adicionar itens de "${restauranteNovoNome}", limpe o carrinho primeiro.`;
+
+    toast({
+      title: 'Restaurante diferente',
+      description: mensagem,
+    });
+
+    removeItem(itemConflitante.cartId);
+
+    Alert.alert(
+      'Restaurante diferente',
+      mensagem,
+      [
+        {
+          text: 'Entendi',
+          style: 'default',
+          onPress: () => {
+            lastConflictItemRef.current = null;
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  }, [carrinho, removeItem]);
+
   const calcularTotal = () => {
     return calculateCartTotal(carrinho);
   };

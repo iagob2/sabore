@@ -61,7 +61,8 @@ export interface RestauranteResponse {
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://meu-back-restaurante.92x7nhce4t8m6.us-east-1.cs.amazonlightsail.com';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+//export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://meu-back-restaurante.92x7nhce4t8m6.us-east-1.cs.amazonlightsail.com';
 
 async function request<T>(path: string, options?: { method?: HttpMethod; body?: unknown }): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

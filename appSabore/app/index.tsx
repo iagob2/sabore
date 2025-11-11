@@ -13,6 +13,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { listarRestaurantes, RestauranteResponse, API_BASE_URL } from '../api/restaurante';
 
+const splashGif = require('../assets/logo-sabore.png');
+
 const Index = () => {
   const [name, setName] = useState('');
   const [carrinho, setCarrinho] = useState([]);
@@ -34,6 +36,7 @@ const Index = () => {
   const [userLocation, setUserLocation] = useState<null | { latitude: number; longitude: number }>(null);
   const [radiusKm, setRadiusKm] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   
   // Estados para dados do backend
   const [restaurantes, setRestaurantes] = useState<RestauranteResponse[]>([]);
@@ -70,7 +73,22 @@ const Index = () => {
 
   // Carregar dados quando o componente montar
   useEffect(() => {
-    carregarRestaurantes();
+    let isMounted = true;
+    const iniciarApp = async () => {
+      await Promise.all([
+        carregarRestaurantes(),
+        new Promise(resolve => setTimeout(resolve, 5000)),
+      ]);
+      if (isMounted) {
+        setShowSplash(false);
+      }
+    };
+
+    iniciarApp();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Array de imagens padrão para variar entre restaurantes
@@ -352,6 +370,27 @@ const Index = () => {
     }
     return true;
   });
+
+  if (showSplash) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#FFBD24',
+        }}
+      >
+        <Image
+          source={splashGif}
+          style={{
+            flex: 1,
+            width: '100%',
+            height: '100%',
+            resizeMode: 'contain',
+          }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={indexStyles.main}>

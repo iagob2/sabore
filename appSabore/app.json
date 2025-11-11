@@ -14,7 +14,20 @@
     },
     "owner": "leonardorenner",
     "android": {
-      "package": "com.anonymous.sabore"
+      "package": "com.anonymous.sabore",
+      "runtimeVersion": "1.0.0"
+    },
+    "ios": {
+      "bundleIdentifier": "com.anonymous.sabore",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/daaae030-ca5b-4165-af73-650f1f1a976a"
     }
   }
 }
